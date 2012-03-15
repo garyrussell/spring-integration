@@ -17,17 +17,13 @@ package org.springframework.integration.ip.tcp.sockjs;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.util.concurrent.Executors;
 
 import javax.net.SocketFactory;
 
-import org.springframework.integration.ip.tcp.serializer.AbstractByteArraySerializer;
-import org.springframework.integration.ip.tcp.serializer.SoftEndOfStreamException;
+import org.springframework.integration.ip.tcp.serializer.WebSocketSerializer;
 
 /**
  * @author Gary Russell
@@ -54,7 +50,7 @@ public class SockJSWebSocketClient {
 		Socket sock = SocketFactory.getDefault().createSocket("localhost", 9999);
 		sock.getOutputStream().write(init.getBytes());
 		handleUpgrade(sock);
-		Executors.newSingleThreadExecutor().execute(new WebSocketReader(sock));
+		Executors.newSingleThreadExecutor().execute(new SocksJSWebSocketReader(sock));
 		while(true) {
 			Thread.sleep(10000);
 			send(sock, "Hello, world!");
@@ -63,8 +59,12 @@ public class SockJSWebSocketClient {
 
 	private void send(Socket sock, String string) throws IOException {
 		String data = "[\"" + string + "\"]";
+		doSend(sock, data);
+	}
+
+	private void doSend(Socket sock, String data) throws IOException {
 		System.out.println("Sending... " + data);
-		serializer.serialize(data.getBytes(), sock.getOutputStream());
+		this.serializer.serialize(data, sock.getOutputStream());
 	}
 
 	private void handleUpgrade(Socket sock) throws Exception {
@@ -78,26 +78,41 @@ public class SockJSWebSocketClient {
 		}
 	}
 
-	private class WebSocketReader implements Runnable {
+	private class SocksJSWebSocketReader implements Runnable {
 
 		private Socket sock;
 
-		private WebSocketReader(Socket sock) {
+		private SocksJSWebSocketReader(Socket sock) {
 			this.sock = sock;
 		}
 
 		public void run() {
 			while (true) {
 				try {
-					byte[] data = serializer.deserialize(this.sock.getInputStream());
-					if (data.length == 1 && data[0] == 'h') {
+					String data = serializer.deserialize(this.sock.getInputStream());
+					if (data.length() == 1 && data.equals("h")) {
 						System.out.println("Received:SockJS-Heartbeat");
 					}
-					else if (data.length == 1 && data[0] == 'o') {
+					else if (data.length() == 1 && data.equals("o")) {
 						System.out.println("Received:SockJS-Open");
 					}
-					else if (data.length > 0 && data[0] == 'a'){
-						System.out.println("Received data:" + new String(data, 1, data.length-1));
+					else if (data.length() > 0 && data.startsWith("c")) {
+						System.out.println("Received SockJS-Close:" + data.substring(1));
+						sock.close();
+						return;
+					}
+					else if (data.length() > 0 && data.startsWith("a")) {
+						System.out.println("Received data:" + data.substring(1));
+					}
+					else if (data.length() > 4 && data.startsWith("ping:")) {
+						System.out.println("Received ping:" + data.substring(5));
+						sendPong(data.substring(5));
+					}
+					else if (data.length() > 4 && data.startsWith("pong:")) {
+						System.out.println("Received pong:" + data.substring(5));
+					}
+					else if (data.length() == 0) {
+						System.out.println("No data received - fragment?");
 					}
 					else {
 						System.out.println("Received unexpected:" + new String(data));
@@ -114,77 +129,10 @@ public class SockJSWebSocketClient {
 				}
 			}
 		}
+
+		private void sendPong(String data) throws IOException {
+			doSend(sock, "pong:" + data);
+		}
 	}
 
-	private class WebSocketSerializer extends AbstractByteArraySerializer {
-
-		public void serialize(byte[] data, OutputStream outputStream)
-				throws IOException {
-			if (data.length > 125) {
-				throw new IOException("Currently only support short <126 data");
-			}
-			int mask = (int) System.currentTimeMillis();
-			ByteBuffer buffer = ByteBuffer.allocate(data.length + 6);
-			// Final fragment; text
-			buffer.put((byte) 0x81);
-			buffer.put((byte) (data.length | 0x80));
-
-			buffer.putInt(mask);
-			byte[] maskBytes = new byte[4];
-			buffer.position(buffer.position() - 4);
-			buffer.get(maskBytes);
-			for (int i = 0; i < data.length; i++) {
-				buffer.put((byte) (data[i] ^ maskBytes[i % 4]));
-			}
-			buffer.flip();
-			outputStream.write(buffer.array());
-		}
-
-		public byte[] deserialize(InputStream inputStream) throws IOException {
-			byte[] buffer = new byte[this.maxMessageSize];
-			int n = 0;
-			int bite;
-			if (logger.isDebugEnabled()) {
-				logger.debug("Available to read:" + inputStream.available());
-			}
-			boolean done = false;
-			int len = 0;
-			int m = 0;
-			while (!done ) {
-				bite = inputStream.read();
-				logger.debug("Read:" + Integer.toHexString(bite));
-				if (bite < 0 && n == 0) {
-					throw new SoftEndOfStreamException("Stream closed between payloads");
-				}
-				checkClosure(bite);
-				switch (n++) {
-				case 0:
-					if (bite == 0x88) {
-						throw new IOException("Connection closed");
-					}
-					if (bite != 0x81) {
-						throw new IOException("Currently only support unfragmented text");
-					}
-					break;
-				case 1:
-					if (bite > 125) {
-						throw new IOException("Currently only support short <126 data");
-					}
-					len = bite;
-					break;
-				default:
-					buffer[m++] = (byte) bite;
-					done = m >= len;
-				}
-				if (m >= this.maxMessageSize) {
-					throw new IOException("CRLF not found before max message length: "
-							+ this.maxMessageSize);
-				}
-			};
-			byte[] assembledData = new byte[m];
-			System.arraycopy(buffer, 0, assembledData, 0, m);
-			return assembledData;
-		}
-
-	}
 }
