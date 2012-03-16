@@ -17,10 +17,11 @@ package org.springframework.integration.ip.tcp.serializer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.core.serializer.Deserializer;
 import org.springframework.util.Assert;
 
 /**
@@ -28,39 +29,60 @@ import org.springframework.util.Assert;
  * @since 2.2
  *
  */
-public class XHRStreamingChunkDeserializer implements Deserializer<String> {
+public class XHRStreamingChunkDeserializer implements StatefulDeserializer<String> {
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 
 	private ByteArrayCrLfSerializer crlfDeserializer = new ByteArrayCrLfSerializer();
 
+	private final Map<InputStream, Boolean> streaming = new ConcurrentHashMap<InputStream, Boolean>();
+
 	public String deserialize(InputStream inputStream) throws IOException {
-		byte[] chunkLengthInHex = this.crlfDeserializer.deserialize(inputStream);
-		if (chunkLengthInHex.length == 0) {
-			return "";
+		Boolean isStreaming = this.streaming.get(inputStream);
+		if (isStreaming == null) { //Consume the headers - TODO - check status
+			StringBuilder builder = new StringBuilder();
+			byte[] headers;
+			do {
+				headers = this.crlfDeserializer.deserialize(inputStream);
+				builder.append(new String(headers, "UTF-8")).append("\r\n");
+			}
+			while (headers.length > 0);
+			this.streaming.put(inputStream, Boolean.TRUE);
+			return builder.toString();
 		}
-		int chunkLength = 0;
-		try {
-			chunkLength = Integer.parseInt(new String(chunkLengthInHex, "UTF-8"), 16);
+		boolean complete = false;
+		StringBuilder builder = new StringBuilder();
+		while (!complete) {
+			byte[] chunkLengthInHex = this.crlfDeserializer.deserialize(inputStream);
+			if (chunkLengthInHex.length == 0) {
+				return "";
+			}
+			int chunkLength = 0;
+			try {
+				chunkLength = Integer.parseInt(new String(chunkLengthInHex, "UTF-8"), 16);
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
+			if (chunkLength <= 0) {
+				throw new SoftEndOfStreamException("0 length chunk received");
+			}
+			byte[] chunk = new byte[chunkLength];
+			for (int i = 0; i < chunkLength; i++) {
+				int c = inputStream.read();
+				checkClosure(c);
+				chunk[i] = (byte) c;
+			}
+			int eom = chunk[chunkLength-1];
+			complete = eom == '\n';
+			Assert.isTrue(inputStream.read() == '\r', "Expected \\r");
+			Assert.isTrue(inputStream.read() == '\n', "Expected \\n");
+			int adjust = complete ? 1 : 0;
+			String data = new String(chunk, 0, chunkLength - adjust, "UTF-8");
+//			System.out.println(data.length() + ":" + data);
+			builder.append(data);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		if (chunkLength <= 0) {
-			throw new SoftEndOfStreamException("0 length chunk received");
-		}
-		byte[] chunk = new byte[--chunkLength];
-		for (int i = 0; i < chunkLength; i++) {
-			int c = inputStream.read();
-			checkClosure(c);
-			chunk[i] = (byte) c;
-		}
-		Assert.isTrue(inputStream.read() == '\n');
-		Assert.isTrue(inputStream.read() == '\r');
-		Assert.isTrue(inputStream.read() == '\n');
-		String data = new String(chunk, "UTF-8");
-		System.out.println(data);
-		return data;
+		return builder.toString();
 	}
 
 	protected void checkClosure(int bite) throws IOException {
@@ -68,6 +90,10 @@ public class XHRStreamingChunkDeserializer implements Deserializer<String> {
 			logger.debug("Socket closed during message assembly");
 			throw new IOException("Socket closed during message assembly");
 		}
+	}
+
+	public void removeState(InputStream inputStream) {
+		this.streaming.remove(inputStream);
 	}
 
 }

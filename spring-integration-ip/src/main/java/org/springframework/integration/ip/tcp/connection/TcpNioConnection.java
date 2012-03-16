@@ -17,6 +17,7 @@
 package org.springframework.integration.ip.tcp.connection;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -356,6 +357,10 @@ public class TcpNioConnection extends AbstractTcpConnection {
 	 */
 	public void setLastRead(long lastRead) {
 		this.lastRead = lastRead;
+	}
+
+	public InputStream getInputStream() throws IOException {
+		return pipedInputStream;
 	}
 
 	/**

@@ -16,6 +16,9 @@
 
 package org.springframework.integration.ip.tcp.connection;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.springframework.core.serializer.Deserializer;
 import org.springframework.core.serializer.Serializer;
 import org.springframework.integration.Message;
@@ -175,6 +178,10 @@ public abstract class AbstractTcpConnectionInterceptor implements TcpConnectionI
 		}
 		this.realSender = sender != null;
 		return this.realSender;
+	}
+
+	public InputStream getInputStream() throws IOException {
+		return theConnection.getInputStream();
 	}
 
 }

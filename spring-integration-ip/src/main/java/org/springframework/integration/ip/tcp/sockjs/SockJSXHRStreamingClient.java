@@ -17,7 +17,9 @@ package org.springframework.integration.ip.tcp.sockjs;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -38,34 +40,46 @@ public class SockJSXHRStreamingClient {
 
 	private ByteArrayCrLfSerializer crlfDeserializer = new ByteArrayCrLfSerializer();
 
+	Map<String, String> cookies = new ConcurrentHashMap<String, String>(); // TODO: needs to be nicer than this
+
 	public static void main(String[] args) throws Exception {
 		new SockJSXHRStreamingClient().start();
 	}
 
 	public void start() throws Exception {
+		int port = 80;
+//		int port = 8081;
+//		String host = "localhost";
+		String host = "echo-test.cloudfoundry.com";
+//		String host = "192.168.222.132";
 		String uuid = UUID.randomUUID().toString();
 		String init =
 			"POST /echo/000/" + uuid + "/xhr_streaming HTTP/1.1\r\n" +
+			"Host: " + host + "\r\n" +
+			"Connection: keep-alive\r\n" +
 			"Accept-Encoding: identity\r\n" +
 			"Content-Length: 0\r\n" +
 			"\r\n";
-		int port = 8081;
-		String host = "localhost";
-//		String host = "192.168.222.132";
 		Socket sock = SocketFactory.getDefault().createSocket(host, port);
 		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(new SocksJSXHRStreamingReader(sock));
+		executor.execute(new SocksJSXHRStreamingReader(sock, uuid));
 		sock.getOutputStream().write(init.getBytes());
-		String statusLine;
+		String statusLine = "HTTP/1.1 204 No Content";
+		int count = 0;
 		do {
 			Thread.sleep(1000);
 			if (sock.isClosed()) {
 				break;
 			}
+			if (cookies.get(uuid) == null) {
+				System.out.println("No cookies yet");
+				continue;
+			}
 			Socket sender = SocketFactory.getDefault().createSocket(host, port);
-			statusLine = send(sender, uuid);
+			statusLine = send(sender, uuid, host);
 		}
-		while (statusLine.equals("HTTP/1.1 204 No Content"));
+		while (statusLine.equals("HTTP/1.1 204 No Content") && count++ < 40);
+		this.deserializer.removeState(sock.getInputStream());
 		sock.close();
 		executor.shutdown();
 	}
@@ -84,11 +98,13 @@ public class SockJSXHRStreamingClient {
 		return statusLine;
 	}
 
-	private String send(Socket sock, String uuid) throws IOException {
+	private String send(Socket sock, String uuid, String host) throws IOException {
 		String content = "[\"" + new String(new char[128]).replace('\0', 'x') + "\"]";
 		String sendData =
 			"POST /echo/000/" + uuid + "/xhr_send HTTP/1.1\r\n" +
+			"Host: " + host + "\r\n" +
 			"Accept-Encoding: identity\r\n" +
+			this.cookies.get(uuid) + "\r\n" +
 			"Content-Length: " + content.length() + "\r\n" +
 			"\r\n" +
 			content;
@@ -101,37 +117,64 @@ public class SockJSXHRStreamingClient {
 
 	private class SocksJSXHRStreamingReader implements Runnable {
 
-		private Socket sock;
+		private final Socket sock;
 
-		private SocksJSXHRStreamingReader(Socket sock) {
+		private final String uuid;
+
+		private SocksJSXHRStreamingReader(Socket sock, String uuid) {
 			this.sock = sock;
+			this.uuid = uuid;
 		}
 
 		public void run() {
 			try {
-				readHeaders(this.sock);
 				while (true) {
 					try {
-						String data = deserializer.deserialize(this.sock.getInputStream());
-						if (data.length() == 1 && data.equals("h")) {
-							System.out.println("Received:SockJS-Heartbeat");
-						}
-						else if (data.length() == 0x800 && data.startsWith("hhhhhhhhhhhhh")) {
-							System.out.println("Received:SockJS-XHR-Prelude");
-						}
-						else if (data.length() == 1 && data.equals("o")) {
-							System.out.println("Received:SockJS-Open");
-						}
-						else if (data.length() > 0 && data.startsWith("c")) {
-							System.out.println("Received SockJS-Close:" + data.substring(1));
-							sock.close();
-							return;
-						}
-						else if (data.length() > 0 && data.startsWith("a")) {
-							System.out.println("Received data:" + data.substring(1));
+						String frameData = deserializer.deserialize(this.sock.getInputStream());
+						// some servers put multiple frames in the same chunk
+						String[] frames;
+						if (frameData.contains("\r") && frameData.startsWith("HTTP")) {
+							System.out.println("Received:Headers\r\n" + frameData);
+							String[] headers = frameData.split("\\r\\n");
+							String cookies = "Cookie: ";
+							for (String header : headers) {
+								if (header.startsWith("Set-Cookie")) {
+									String[] bits = header.split(": *");
+									cookies += bits[1] + "; ";
+								}
+							}
+							System.out.println(cookies);
+							SockJSXHRStreamingClient.this.cookies.put(this.uuid, cookies);
 						}
 						else {
-							System.out.println("Received unexpected:" + new String(data));
+							if (frameData.contains("\n")) {
+								frames = frameData.split(",");
+							}
+							else {
+								frames = new String[] {frameData};
+							}
+							for (String data : frames) {
+								if (data.length() == 1 && data.equals("h")) {
+									System.out.println("Received:SockJS-Heartbeat");
+								}
+								else if (data.length() == 0x800 && data.startsWith("hhhhhhhhhhhhh")) {
+									System.out.println("Received:SockJS-XHR-Prelude");
+								}
+								else if (data.length() == 1 && data.equals("o")) {
+									System.out.println("Received:SockJS-Open");
+								}
+								else if (data.length() > 0 && data.startsWith("c")) {
+									System.out.println("Received SockJS-Close:" + data.substring(1));
+									sock.close();
+									return;
+								}
+								else if (data.length() > 0 && data.startsWith("a")) {
+									System.out.println("Received data:" + data.substring(1));
+								}
+								else {
+									System.out.println("Received unexpected:" + new String(data));
+								}
+							}
 						}
 					}
 					catch (SoftEndOfStreamException seose) {
@@ -139,8 +182,11 @@ public class SockJSXHRStreamingClient {
 						throw new RuntimeException(seose);
 					}
 					catch (IOException e) {
-						e.printStackTrace();
-						throw new RuntimeException(e);
+						if(!("Socket closed".equals(e.getMessage()))) {
+							e.printStackTrace();
+							throw new RuntimeException(e);
+						}
+						return;
 					}
 				}
 			}
@@ -148,9 +194,6 @@ public class SockJSXHRStreamingClient {
 				if (!(re.getCause() instanceof SoftEndOfStreamException)) {
 					re.printStackTrace();
 				}
-			}
-			catch (IOException e) {
-				e.printStackTrace();
 			}
 			finally {
 				try {
