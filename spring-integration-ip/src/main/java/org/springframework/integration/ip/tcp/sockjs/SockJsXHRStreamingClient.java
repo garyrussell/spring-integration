@@ -29,7 +29,7 @@ import javax.net.SocketFactory;
 
 import org.springframework.integration.ip.tcp.serializer.ByteArrayCrLfSerializer;
 import org.springframework.integration.ip.tcp.serializer.SoftEndOfStreamException;
-import org.springframework.integration.ip.tcp.serializer.XHRStreamingChunkDeserializer;
+import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChunkDeserializer;
 
 /**
  * @author Gary Russell
@@ -49,10 +49,10 @@ public class SockJsXHRStreamingClient {
 	}
 
 	public void start() throws Exception {
-//		int port = 80;
-		int port = 8081;
-		String host = "localhost";
-//		String host = "echo-test.cloudfoundry.com";
+		int port = 80;
+//		int port = 8081;
+//		String host = "localhost";
+		String host = "echo-test.cloudfoundry.com";
 //		String host = "192.168.222.132";
 		String uuid = UUID.randomUUID().toString();
 		String init =

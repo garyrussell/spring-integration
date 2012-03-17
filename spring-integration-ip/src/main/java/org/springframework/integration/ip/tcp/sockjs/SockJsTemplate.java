@@ -18,6 +18,9 @@ package org.springframework.integration.ip.tcp.sockjs;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,13 +31,15 @@ import org.springframework.integration.ip.tcp.connection.TcpConnection;
 import org.springframework.integration.ip.tcp.connection.TcpListener;
 import org.springframework.integration.ip.tcp.connection.TcpSender;
 import org.springframework.integration.ip.tcp.serializer.StatefulDeserializer;
+import org.springframework.integration.message.GenericMessage;
+import org.springframework.util.Assert;
 
 /**
  * @author Gary Russell
  * @since 2.2
  *
  */
-public class SockJsTemplate implements TcpListener {
+public class SockJsTemplate implements TcpListener, SockJsOperations {
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 
@@ -45,13 +50,20 @@ public class SockJsTemplate implements TcpListener {
 		this.connectionFactory.registerListener(this);
 	}
 	
-	public SockJsContext startStream(String baseUrl, final SockJsCallback callback) {
+	public SockJsContext startStream(String baseResource, final SockJsCallback callback) {
 		final String uuid = UUID.randomUUID().toString(); 
 		SockJsContext sockJsContext = new SockJsContext(uuid);
 		try {
-			TcpConnection connection = this.connectionFactory.getConnection();
+			TcpConnection connection = this.connectionFactory.getNewConnection();
 			registerListener(connection, callback, uuid, sockJsContext);
 			registerSender(connection, callback, uuid);
+			connection.send(new GenericMessage<String>(
+				"POST " + baseResource + "/" + uuid + "/xhr_streaming HTTP/1.1\r\n" +
+				"Host: " + this.connectionFactory.getHost() + "\r\n" +
+				"Connection: keep-alive\r\n" +
+				"Accept-Encoding: identity\r\n" +
+				"Content-Length: 0\r\n" +
+				"\r\n"));
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
@@ -81,7 +93,7 @@ public class SockJsTemplate implements TcpListener {
 		});
 	}
 
-	private void registerListener(TcpConnection connection,
+	private void registerListener(final TcpConnection connection,
 			final SockJsCallback callback, final String uuid, final SockJsContext sockJsContext) {
 		connection.registerListener(new TcpListener() {
 
@@ -93,6 +105,9 @@ public class SockJsTemplate implements TcpListener {
 						sockJsContext.setCookies(frame.getPayload());
 						break;
 					case SockJsFrame.TYPE_CLOSE:
+						connection.close();
+						callback.closed(uuid);
+						break;
 					case SockJsFrame.TYPE_HEADERS:
 					case SockJsFrame.TYPE_HEARTBEAT:
 					case SockJsFrame.TYPE_OPEN:
@@ -100,10 +115,10 @@ public class SockJsTemplate implements TcpListener {
 					case SockJsFrame.TYPE_PONG:
 					case SockJsFrame.TYPE_PRELUDE:
 					case SockJsFrame.TYPE_UNEXPECTED:
-						callback.control(frame.getPayload(), uuid);
+						callback.control(frame, uuid);
 						break;
 					case SockJsFrame.TYPE_DATA:
-						callback.data(frame.getPayload(), uuid);
+						callback.data(frame, uuid);
 					}
 				}
 				return false;
@@ -114,6 +129,37 @@ public class SockJsTemplate implements TcpListener {
 	public boolean onMessage(Message<?> message) {
 		logger.error("Should not be called");
 		return false;
+	}
+
+	public SockJsFrame sendXhr(String baseResource, String uuid, String data, SockJsContext context) {
+		try {
+			TcpConnection connection = this.connectionFactory.getNewConnection();
+			final BlockingQueue<SockJsFrame> reply = new LinkedBlockingQueue<SockJsFrame>();
+			connection.registerListener(new TcpListener() {
+				public boolean onMessage(Message<?> message) {
+					@SuppressWarnings("unchecked")
+					SockJsFrame frame = (SockJsFrame) ((List<SockJsFrame>) message.getPayload()).get(0);
+					Assert.isTrue(frame.getType() == SockJsFrame.TYPE_HEADERS);
+					reply.offer(frame);
+					return false;
+				}
+			});
+			connection.send(new GenericMessage<String>(
+				"POST " + baseResource + "/" + uuid + "/xhr_send HTTP/1.1\r\n" +
+				"Host: " + this.connectionFactory.getHost() + "\r\n" +
+				"Accept-Encoding: identity\r\n" +
+				context.getCookies() + "\r\n" +
+				"Content-Length: " + data.length() + "\r\n" +
+				"\r\n" +
+				data +
+				"\r\n"));
+			SockJsFrame frame = reply.poll(10, TimeUnit.SECONDS);
+			connection.close();
+			return frame;
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	

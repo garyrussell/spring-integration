@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.integration.ip.tcp.serializer;
+package org.springframework.integration.ip.tcp.sockjs.seralizer;
 
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
+import java.util.List;
 
 import org.junit.Test;
+import org.springframework.integration.ip.tcp.sockjs.SockJsFrame;
+import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChunkDeserializer;
 
 /**
  * @author Gary Russell
@@ -30,9 +33,13 @@ public class XHRStreamingChunkDeserializerTests {
 
 	@Test
 	public void test() throws Exception {
-		String test = "a\r\nabcdefghi\n\r\n";
+		String test = "HTTP\r\nHeaders\r\n\r\nb\r\naabcdefghi\n\r\n";
 		ByteArrayInputStream bais = new ByteArrayInputStream(test.getBytes());
-		assertEquals("abcdefghi", new XHRStreamingChunkDeserializer().deserialize(bais));
+		XHRStreamingChunkDeserializer xhrStreamingChunkDeserializer = new XHRStreamingChunkDeserializer();
+		List<SockJsFrame> deserialize = xhrStreamingChunkDeserializer.deserialize(bais);
+		assertEquals("HTTP\r\nHeaders\r\n\r\n", deserialize.get(0).getPayload());
+		deserialize = xhrStreamingChunkDeserializer.deserialize(bais);
+		assertEquals("abcdefghi", deserialize.get(0).getPayload());
 	}
 
 }

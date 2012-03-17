@@ -50,6 +50,11 @@ public class TcpNetClientConnectionFactory extends
 		if (theConnection != null && theConnection.isOpen()) {
 			return theConnection;
 		}
+		return getNewConnection();
+	}
+
+	@Override
+	public TcpConnection getNewConnection() throws Exception {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Opening new socket connection to " + this.getHost() + ":" + this.getPort());
 		}

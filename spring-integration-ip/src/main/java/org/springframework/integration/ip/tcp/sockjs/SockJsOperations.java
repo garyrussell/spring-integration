@@ -17,19 +17,15 @@ package org.springframework.integration.ip.tcp.sockjs;
 
 /**
  * @author Gary Russell
- * @since 2.1
+ * @since 2.2
  *
  */
-public interface SockJsCallback {
+public interface SockJsOperations {
 
-	public static final String OPEN = "o";
+	public abstract SockJsContext startStream(String baseResource,
+			final SockJsCallback callback);
 
-	public static final String HEARTBEAT = "h";
-	
-	void data(SockJsFrame frame, String uuid);
-
-	void control(SockJsFrame frame, String uuid);
-
-	void closed(String uuid);
+	public abstract SockJsFrame sendXhr(String baseResource, String uuid,
+			String data, SockJsContext context);
 
 }

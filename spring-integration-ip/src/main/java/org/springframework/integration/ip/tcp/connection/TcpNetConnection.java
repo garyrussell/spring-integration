@@ -134,6 +134,7 @@ public class TcpNetConnection extends AbstractTcpConnection {
 				logger.debug("Message received " + message);
 			}
 			try {
+				listener = this.getListener();
 				if (listener == null) {
 					logger.warn("Unexpected message - no inbound adapter registered with connection " + message);
 					continue;

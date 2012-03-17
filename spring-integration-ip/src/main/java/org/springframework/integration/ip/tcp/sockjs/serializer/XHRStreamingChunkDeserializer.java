@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.integration.ip.tcp.serializer;
+package org.springframework.integration.ip.tcp.sockjs.serializer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.integration.ip.tcp.serializer.ByteArrayCrLfSerializer;
+import org.springframework.integration.ip.tcp.serializer.SoftEndOfStreamException;
+import org.springframework.integration.ip.tcp.serializer.StatefulDeserializer;
 import org.springframework.integration.ip.tcp.sockjs.SockJsFrame;
 import org.springframework.util.Assert;
 
@@ -104,11 +107,13 @@ public class XHRStreamingChunkDeserializer implements StatefulDeserializer<List<
 			}
 			System.out.println(cookies);
 			dataList.add(new SockJsFrame(SockJsFrame.TYPE_HEADERS, frameData));
-			dataList.add(new SockJsFrame(SockJsFrame.TYPE_COOKIES, cookies));
+			if (cookies.length() > 8) {
+				dataList.add(new SockJsFrame(SockJsFrame.TYPE_COOKIES, cookies));
+			}
 		}
 		else {
 			if (frameData.contains("\n")) {
-				frames = frameData.split(",");
+				frames = frameData.split("\n");
 			}
 			else {
 				frames = new String[] {frameData};
