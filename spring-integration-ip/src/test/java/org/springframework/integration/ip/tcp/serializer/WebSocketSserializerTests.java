@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.ByteArrayOutputStream;
 
 import org.junit.Test;
+import org.springframework.integration.ip.tcp.sockjs.serializer.WebSocketSerializer;
 
 /**
  * @author Gary Russell

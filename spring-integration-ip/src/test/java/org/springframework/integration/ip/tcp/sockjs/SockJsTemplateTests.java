@@ -24,7 +24,9 @@ import org.junit.Test;
 import org.springframework.integration.ip.tcp.connection.AbstractClientConnectionFactory;
 import org.springframework.integration.ip.tcp.connection.TcpNetClientConnectionFactory;
 import org.springframework.integration.ip.tcp.serializer.ByteArrayRawSerializer;
+import org.springframework.integration.ip.tcp.sockjs.serializer.WebSocketSerializer;
 import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChunkDeserializer;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
 /**
  * @author Gary Russell
@@ -34,9 +36,9 @@ import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChun
 public class SockJsTemplateTests {
 
 	@Test
-	public void test() throws Exception {
-//		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("localhost", 18081);
-		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("echo-test.cloudfoundry.com", 80);
+	public void testXHRStream() throws Exception {
+		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("localhost", 8081);
+//		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("echo-test.cloudfoundry.com", 80);
 		ccf.setDeserializer(new XHRStreamingChunkDeserializer());
 		ccf.setSerializer(new ByteArrayRawSerializer());
 		ccf.setSoTimeout(60000);
@@ -83,4 +85,5 @@ public class SockJsTemplateTests {
 			assertEquals("[\"" + new String(new char[128]).replace('\0', 'x') + "\"]", results.remove(0));
 		}
 	}
+
 }

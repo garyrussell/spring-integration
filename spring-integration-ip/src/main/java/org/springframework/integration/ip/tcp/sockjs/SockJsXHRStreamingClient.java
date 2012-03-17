@@ -30,6 +30,7 @@ import javax.net.SocketFactory;
 import org.springframework.integration.ip.tcp.serializer.ByteArrayCrLfSerializer;
 import org.springframework.integration.ip.tcp.serializer.SoftEndOfStreamException;
 import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChunkDeserializer;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
 /**
  * @author Gary Russell

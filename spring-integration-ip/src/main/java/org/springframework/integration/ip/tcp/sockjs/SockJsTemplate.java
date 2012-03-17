@@ -31,6 +31,7 @@ import org.springframework.integration.ip.tcp.connection.TcpConnection;
 import org.springframework.integration.ip.tcp.connection.TcpListener;
 import org.springframework.integration.ip.tcp.connection.TcpSender;
 import org.springframework.integration.ip.tcp.serializer.StatefulDeserializer;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 import org.springframework.integration.message.GenericMessage;
 import org.springframework.util.Assert;
 

@@ -21,8 +21,8 @@ import java.io.ByteArrayInputStream;
 import java.util.List;
 
 import org.junit.Test;
-import org.springframework.integration.ip.tcp.sockjs.SockJsFrame;
 import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChunkDeserializer;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
 /**
  * @author Gary Russell

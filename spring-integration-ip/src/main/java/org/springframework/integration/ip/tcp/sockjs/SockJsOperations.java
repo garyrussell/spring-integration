@@ -15,6 +15,8 @@
  */
 package org.springframework.integration.ip.tcp.sockjs;
 
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
+
 /**
  * @author Gary Russell
  * @since 2.2

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.integration.ip.tcp.sockjs;
+package org.springframework.integration.ip.tcp.sockjs.support;
 
 /**
  * @author Gary Russell
@@ -42,6 +42,10 @@ public class SockJsFrame {
 
 	public static final int TYPE_COOKIES = 10;
 
+	private static final String[] typeToString = new String[] {
+		"Invalid", "Headers", "HeartBeat", "XHR Prelude", "Data", "Ping", "Pong", "Open", "Close", "Unexpected", "Cookies"
+	};
+
 	private final int type;
 
 	private final String payload;
@@ -58,4 +62,10 @@ public class SockJsFrame {
 	public String getPayload() {
 		return this.payload;
 	}
+
+	@Override
+	public String toString() {
+		return "SockJsFrame [type=" + typeToString[type] + ", payload=" + payload + "]";
+	}
+
 }

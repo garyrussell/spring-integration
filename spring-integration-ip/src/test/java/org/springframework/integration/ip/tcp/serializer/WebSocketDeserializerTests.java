@@ -16,6 +16,7 @@
 package org.springframework.integration.ip.tcp.serializer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -23,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.junit.Test;
+import org.springframework.integration.ip.tcp.sockjs.serializer.WebSocketSerializer;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
 /**
  * @author Gary Russell
@@ -37,8 +40,8 @@ public class WebSocketDeserializerTests {
 	public void testShortLength() throws Exception {
 		byte[] msg = new byte[] {(byte) 0x81, 0x01, 'A'};
 		InputStream is = new ByteArrayInputStream(msg);
-		String result = deserializer.deserialize(is);
-		assertEquals("A", result);
+		SockJsFrame result = deserializer.deserialize(is);
+		assertEquals("A", result.getPayload());
 	}
 
 	@Test
@@ -51,7 +54,7 @@ public class WebSocketDeserializerTests {
 		msg[4] = 'A';
 		msg[131] = 'Z';
 		InputStream is = new ByteArrayInputStream(msg);
-		String result = deserializer.deserialize(is);
+		String result = deserializer.deserialize(is).getPayload();
 		assertEquals(128, result.length());
 		assertTrue(result.startsWith("A"));
 		assertTrue(result.endsWith("Z"));
@@ -67,7 +70,7 @@ public class WebSocketDeserializerTests {
 		msg[4] = 'A';
 		msg[(int) (Math.pow(2, 16) + 2)] = 'Z';
 		InputStream is = new ByteArrayInputStream(msg);
-		String result = deserializer.deserialize(is);
+		String result = deserializer.deserialize(is).getPayload();
 		assertEquals((int) Math.pow(2, 16) - 1, result.length());
 		assertTrue(result.startsWith("A"));
 		assertTrue(result.endsWith("Z"));
@@ -89,7 +92,7 @@ public class WebSocketDeserializerTests {
 		msg[10] = 'A';
 		msg[(int) (Math.pow(2, 16) + 9)] = 'Z';
 		InputStream is = new ByteArrayInputStream(msg);
-		String result = deserializer.deserialize(is);
+		String result = deserializer.deserialize(is).getPayload();
 		assertEquals((int) Math.pow(2, 16), result.length());
 		assertTrue(result.startsWith("A"));
 		assertTrue(result.endsWith("Z"));
@@ -116,13 +119,13 @@ public class WebSocketDeserializerTests {
 	public void testFragmented() throws Exception {
 		byte[] msg = new byte[] {(byte) 0x01, 0x01, 'A'};
 		InputStream is = new ByteArrayInputStream(msg);
-		String result = deserializer.deserialize(is);
-		assertEquals(0, result.length());
+		SockJsFrame frame = deserializer.deserialize(is);
+		assertNull(frame);
 		msg[0] = (byte) 0x81;
 		msg[1] = 0x01;
 		msg[2] = 'B';
 		is.reset();
-		result = deserializer.deserialize(is);
-		assertEquals("AB", result);
+		frame = deserializer.deserialize(is);
+		assertEquals("AB", frame.getPayload());
 	}
 }

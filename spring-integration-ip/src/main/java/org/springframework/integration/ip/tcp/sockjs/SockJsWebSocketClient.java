@@ -23,7 +23,8 @@ import java.util.concurrent.Executors;
 
 import javax.net.SocketFactory;
 
-import org.springframework.integration.ip.tcp.serializer.WebSocketSerializer;
+import org.springframework.integration.ip.tcp.sockjs.serializer.WebSocketSerializer;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
 /**
  * @author Gary Russell
@@ -47,7 +48,7 @@ public class SockJsWebSocketClient {
 			"Origin: http://localhost:9999\r\n" +
 			"Sec-WebSocket-Key: nGahJFI1wv1Vn/QW5TdFvg==\r\n" +
 			"Sec-WebSocket-Version: 13\r\n\r\n";
-		Socket sock = SocketFactory.getDefault().createSocket("localhost", 9999);
+		Socket sock = SocketFactory.getDefault().createSocket("localhost", 8081);
 		sock.getOutputStream().write(init.getBytes());
 		handleUpgrade(sock);
 		Executors.newSingleThreadExecutor().execute(new SocksJSWebSocketReader(sock));
@@ -89,33 +90,12 @@ public class SockJsWebSocketClient {
 		public void run() {
 			while (true) {
 				try {
-					String data = serializer.deserialize(this.sock.getInputStream());
-					if (data.length() == 1 && data.equals("h")) {
-						System.out.println("Received:SockJS-Heartbeat");
-					}
-					else if (data.length() == 1 && data.equals("o")) {
-						System.out.println("Received:SockJS-Open");
-					}
-					else if (data.length() > 0 && data.startsWith("c")) {
-						System.out.println("Received SockJS-Close:" + data.substring(1));
+					SockJsFrame frame = serializer.deserialize(this.sock.getInputStream());
+					if (frame.getType() == SockJsFrame.TYPE_CLOSE) {
 						sock.close();
-						return;
 					}
-					else if (data.length() > 0 && data.startsWith("a")) {
-						System.out.println("Received data:" + data.substring(1));
-					}
-					else if (data.length() > 4 && data.startsWith("ping:")) {
-						System.out.println("Received ping:" + data.substring(5));
-						sendPong(data.substring(5));
-					}
-					else if (data.length() > 4 && data.startsWith("pong:")) {
-						System.out.println("Received pong:" + data.substring(5));
-					}
-					else if (data.length() == 0) {
-						System.out.println("No data received - fragment?");
-					}
-					else {
-						System.out.println("Received unexpected:" + new String(data));
+					else if (frame.getType() == SockJsFrame.TYPE_PING) {
+						this.sendPong(frame.getPayload());
 					}
 				} catch (IOException e) {
 					e.printStackTrace();

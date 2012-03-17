@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.integration.ip.tcp.serializer;
+package org.springframework.integration.ip.tcp.sockjs.serializer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,15 +24,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.core.serializer.Deserializer;
 import org.springframework.core.serializer.Serializer;
+import org.springframework.integration.ip.tcp.serializer.SoftEndOfStreamException;
+import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
 /**
  * @author Gary Russell
  * @since 2.2
  *
  */
-public class WebSocketSerializer implements Serializer<String>, Deserializer<String> {
+public class WebSocketSerializer extends AbstractSockJsDeerializer<SockJsFrame> implements Serializer<String> {
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 
@@ -88,7 +89,7 @@ public class WebSocketSerializer implements Serializer<String>, Deserializer<Str
 		outputStream.write(buffer.array());
 	}
 
-	public String deserialize(InputStream inputStream) throws IOException {
+	public SockJsFrame deserialize(InputStream inputStream) throws IOException {
 		int bite;
 		if (logger.isDebugEnabled()) {
 			logger.debug("Available to read:" + inputStream.available());
@@ -184,23 +185,23 @@ public class WebSocketSerializer implements Serializer<String>, Deserializer<Str
 				this.fragments.put(inputStream, builder);
 			}
 			builder.append(data);
-			return "";
+			return null;
 		}
 		else if (ping) {
-			return "ping:" + data;
+			return new SockJsFrame(SockJsFrame.TYPE_PING, data);
 		}
 		else if (pong) {
-			return "pong:" + data;
+			return new SockJsFrame(SockJsFrame.TYPE_PONG, data);
 		}
 		else {
 			StringBuilder builder = this.fragments.get(inputStream);
 			if (builder == null) {
-				return data;
+				return decodeToFrame(data);
 			}
 			else {
 				builder.append(data).toString();
 				this.removeFragments(inputStream);
-				return builder.toString();
+				return this.decodeToFrame(builder.toString());
 			}
 		}
 	}
@@ -210,6 +211,11 @@ public class WebSocketSerializer implements Serializer<String>, Deserializer<Str
 			logger.debug("Socket closed during message assembly");
 			throw new IOException("Socket closed during message assembly");
 		}
+	}
+
+	public void removeState(InputStream inputStream) {
+		super.removeState(inputStream);
+		this.removeFragments(inputStream);
 	}
 
 }
