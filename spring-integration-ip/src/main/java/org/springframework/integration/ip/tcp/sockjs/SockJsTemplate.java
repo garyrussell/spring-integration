@@ -16,6 +16,7 @@
 package org.springframework.integration.ip.tcp.sockjs;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.logging.Log;
@@ -44,17 +45,18 @@ public class SockJsTemplate implements TcpListener {
 		this.connectionFactory.registerListener(this);
 	}
 	
-	public String startStream(String baseUrl, final SockJsCallback callback) {
+	public SockJsContext startStream(String baseUrl, final SockJsCallback callback) {
 		final String uuid = UUID.randomUUID().toString(); 
+		SockJsContext sockJsContext = new SockJsContext(uuid);
 		try {
 			TcpConnection connection = this.connectionFactory.getConnection();
-			registerListener(connection, callback, uuid);
+			registerListener(connection, callback, uuid, sockJsContext);
 			registerSender(connection, callback, uuid);
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		return uuid;
+		return sockJsContext;
 	}
 
 	private void registerSender(TcpConnection connection,
@@ -80,14 +82,29 @@ public class SockJsTemplate implements TcpListener {
 	}
 
 	private void registerListener(TcpConnection connection,
-			final SockJsCallback callback, final String uuid) {
+			final SockJsCallback callback, final String uuid, final SockJsContext sockJsContext) {
 		connection.registerListener(new TcpListener() {
 
+			@SuppressWarnings("unchecked")
 			public boolean onMessage(Message<?> message) {
-				if (message.getHeaders().get("js_control") == null) {
-					callback.data((String) message.getPayload(), uuid);
-				} else {
-					callback.control((String) message.getPayload(), uuid);
+				for (SockJsFrame frame : (List<SockJsFrame>) message.getPayload()) {
+					switch (frame.getType()) {
+					case SockJsFrame.TYPE_COOKIES:
+						sockJsContext.setCookies(frame.getPayload());
+						break;
+					case SockJsFrame.TYPE_CLOSE:
+					case SockJsFrame.TYPE_HEADERS:
+					case SockJsFrame.TYPE_HEARTBEAT:
+					case SockJsFrame.TYPE_OPEN:
+					case SockJsFrame.TYPE_PING:
+					case SockJsFrame.TYPE_PONG:
+					case SockJsFrame.TYPE_PRELUDE:
+					case SockJsFrame.TYPE_UNEXPECTED:
+						callback.control(frame.getPayload(), uuid);
+						break;
+					case SockJsFrame.TYPE_DATA:
+						callback.data(frame.getPayload(), uuid);
+					}
 				}
 				return false;
 			}
@@ -95,7 +112,7 @@ public class SockJsTemplate implements TcpListener {
 	}
 
 	public boolean onMessage(Message<?> message) {
-		logger.error("Should nor be called");
+		logger.error("Should not be called");
 		return false;
 	}
 

@@ -17,11 +17,14 @@ package org.springframework.integration.ip.tcp.serializer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.integration.ip.tcp.sockjs.SockJsFrame;
 import org.springframework.util.Assert;
 
 /**
@@ -29,7 +32,7 @@ import org.springframework.util.Assert;
  * @since 2.2
  *
  */
-public class XHRStreamingChunkDeserializer implements StatefulDeserializer<String> {
+public class XHRStreamingChunkDeserializer implements StatefulDeserializer<List<SockJsFrame>> {
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 
@@ -37,7 +40,7 @@ public class XHRStreamingChunkDeserializer implements StatefulDeserializer<Strin
 
 	private final Map<InputStream, Boolean> streaming = new ConcurrentHashMap<InputStream, Boolean>();
 
-	public String deserialize(InputStream inputStream) throws IOException {
+	public List<SockJsFrame> deserialize(InputStream inputStream) throws IOException {
 		Boolean isStreaming = this.streaming.get(inputStream);
 		if (isStreaming == null) { //Consume the headers - TODO - check status
 			StringBuilder builder = new StringBuilder();
@@ -48,14 +51,14 @@ public class XHRStreamingChunkDeserializer implements StatefulDeserializer<Strin
 			}
 			while (headers.length > 0);
 			this.streaming.put(inputStream, Boolean.TRUE);
-			return builder.toString();
+			return decodeFrameData(builder.toString());
 		}
 		boolean complete = false;
 		StringBuilder builder = new StringBuilder();
 		while (!complete) {
 			byte[] chunkLengthInHex = this.crlfDeserializer.deserialize(inputStream);
 			if (chunkLengthInHex.length == 0) {
-				return "";
+				break;
 			}
 			int chunkLength = 0;
 			try {
@@ -82,8 +85,64 @@ public class XHRStreamingChunkDeserializer implements StatefulDeserializer<Strin
 //			System.out.println(data.length() + ":" + data);
 			builder.append(data);
 		}
-		return builder.toString();
+		return decodeFrameData(builder.toString());
 	}
+
+	private List<SockJsFrame> decodeFrameData(String frameData) throws IOException {
+		List<SockJsFrame> dataList = new ArrayList<SockJsFrame>();
+		// some servers put multiple frames in the same chunk
+		String[] frames;
+		if (frameData.contains("\r") && frameData.startsWith("HTTP")) {
+			System.out.println("Received:Headers\r\n" + frameData);
+			String[] headers = frameData.split("\\r\\n");
+			String cookies = "Cookie: ";
+			for (String header : headers) {
+				if (header.startsWith("Set-Cookie")) {
+					String[] bits = header.split(": *");
+					cookies += bits[1] + "; ";
+				}
+			}
+			System.out.println(cookies);
+			dataList.add(new SockJsFrame(SockJsFrame.TYPE_HEADERS, frameData));
+			dataList.add(new SockJsFrame(SockJsFrame.TYPE_COOKIES, cookies));
+		}
+		else {
+			if (frameData.contains("\n")) {
+				frames = frameData.split(",");
+			}
+			else {
+				frames = new String[] {frameData};
+			}
+			for (String data : frames) {
+				if (data.length() == 1 && data.equals("h")) {
+					System.out.println("Received:SockJS-Heartbeat");
+					dataList.add(new SockJsFrame(SockJsFrame.TYPE_HEARTBEAT, data));
+				}
+				else if (data.length() == 0x800 && data.startsWith("hhhhhhhhhhhhh")) {
+					System.out.println("Received:SockJS-XHR-Prelude");
+					dataList.add(new SockJsFrame(SockJsFrame.TYPE_PRELUDE, data));
+				}
+				else if (data.length() == 1 && data.equals("o")) {
+					System.out.println("Received:SockJS-Open");
+					dataList.add(new SockJsFrame(SockJsFrame.TYPE_OPEN, data));
+				}
+				else if (data.length() > 0 && data.startsWith("c")) {
+					System.out.println("Received SockJS-Close:" + data.substring(1));
+					dataList.add(new SockJsFrame(SockJsFrame.TYPE_CLOSE, data.substring(1)));
+				}
+				else if (data.length() > 0 && data.startsWith("a")) {
+					System.out.println("Received data:" + data.substring(1));
+					dataList.add(new SockJsFrame(SockJsFrame.TYPE_DATA, data.substring(1)));
+				}
+				else {
+					System.out.println("Received unexpected:" + new String(data));
+					dataList.add(new SockJsFrame(SockJsFrame.TYPE_UNEXPECTED, data));
+				}
+			}
+		}
+		return dataList;
+	}
+
 
 	protected void checkClosure(int bite) throws IOException {
 		if (bite < 0) {

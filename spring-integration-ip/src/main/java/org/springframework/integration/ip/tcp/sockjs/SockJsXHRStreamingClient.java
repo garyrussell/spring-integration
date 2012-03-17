@@ -16,7 +16,9 @@
 package org.springframework.integration.ip.tcp.sockjs;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,7 +36,7 @@ import org.springframework.integration.ip.tcp.serializer.XHRStreamingChunkDeseri
  * @since 2.2
  *
  */
-public class SockJSXHRStreamingClient {
+public class SockJsXHRStreamingClient {
 
 	private XHRStreamingChunkDeserializer deserializer = new XHRStreamingChunkDeserializer();
 
@@ -43,14 +45,14 @@ public class SockJSXHRStreamingClient {
 	Map<String, String> cookies = new ConcurrentHashMap<String, String>(); // TODO: needs to be nicer than this
 
 	public static void main(String[] args) throws Exception {
-		new SockJSXHRStreamingClient().start();
+		new SockJsXHRStreamingClient().start();
 	}
 
 	public void start() throws Exception {
-		int port = 80;
-//		int port = 8081;
-//		String host = "localhost";
-		String host = "echo-test.cloudfoundry.com";
+//		int port = 80;
+		int port = 8081;
+		String host = "localhost";
+//		String host = "echo-test.cloudfoundry.com";
 //		String host = "192.168.222.132";
 		String uuid = UUID.randomUUID().toString();
 		String init =
@@ -61,6 +63,7 @@ public class SockJSXHRStreamingClient {
 			"Content-Length: 0\r\n" +
 			"\r\n";
 		Socket sock = SocketFactory.getDefault().createSocket(host, port);
+		InputStream inputStream = sock.getInputStream();
 		ExecutorService executor = Executors.newSingleThreadExecutor();
 		executor.execute(new SocksJSXHRStreamingReader(sock, uuid));
 		sock.getOutputStream().write(init.getBytes());
@@ -79,7 +82,7 @@ public class SockJSXHRStreamingClient {
 			statusLine = send(sender, uuid, host);
 		}
 		while (statusLine.equals("HTTP/1.1 204 No Content") && count++ < 40);
-		this.deserializer.removeState(sock.getInputStream());
+		this.deserializer.removeState(inputStream);
 		sock.close();
 		executor.shutdown();
 	}
@@ -130,50 +133,13 @@ public class SockJSXHRStreamingClient {
 			try {
 				while (true) {
 					try {
-						String frameData = deserializer.deserialize(this.sock.getInputStream());
-						// some servers put multiple frames in the same chunk
-						String[] frames;
-						if (frameData.contains("\r") && frameData.startsWith("HTTP")) {
-							System.out.println("Received:Headers\r\n" + frameData);
-							String[] headers = frameData.split("\\r\\n");
-							String cookies = "Cookie: ";
-							for (String header : headers) {
-								if (header.startsWith("Set-Cookie")) {
-									String[] bits = header.split(": *");
-									cookies += bits[1] + "; ";
-								}
+						List<SockJsFrame> frames = deserializer.deserialize(this.sock.getInputStream());
+						for (SockJsFrame frame : frames) {
+							if (frame.getType() == SockJsFrame.TYPE_CLOSE) {
+								sock.close();
 							}
-							System.out.println(cookies);
-							SockJSXHRStreamingClient.this.cookies.put(this.uuid, cookies);
-						}
-						else {
-							if (frameData.contains("\n")) {
-								frames = frameData.split(",");
-							}
-							else {
-								frames = new String[] {frameData};
-							}
-							for (String data : frames) {
-								if (data.length() == 1 && data.equals("h")) {
-									System.out.println("Received:SockJS-Heartbeat");
-								}
-								else if (data.length() == 0x800 && data.startsWith("hhhhhhhhhhhhh")) {
-									System.out.println("Received:SockJS-XHR-Prelude");
-								}
-								else if (data.length() == 1 && data.equals("o")) {
-									System.out.println("Received:SockJS-Open");
-								}
-								else if (data.length() > 0 && data.startsWith("c")) {
-									System.out.println("Received SockJS-Close:" + data.substring(1));
-									sock.close();
-									return;
-								}
-								else if (data.length() > 0 && data.startsWith("a")) {
-									System.out.println("Received data:" + data.substring(1));
-								}
-								else {
-									System.out.println("Received unexpected:" + new String(data));
-								}
+							else if (frame.getType() == SockJsFrame.TYPE_COOKIES) {
+								SockJsXHRStreamingClient.this.cookies.put(this.uuid, frame.getPayload());
 							}
 						}
 					}

@@ -30,12 +30,12 @@ import org.springframework.integration.ip.tcp.serializer.WebSocketSerializer;
  * @since 2.2
  *
  */
-public class SockJSWebSocketClient {
+public class SockJsWebSocketClient {
 
 	private WebSocketSerializer serializer = new WebSocketSerializer();
 
 	public static void main(String[] args) throws Exception {
-		new SockJSWebSocketClient().start();
+		new SockJsWebSocketClient().start();
 	}
 
 	public void start() throws Exception {
