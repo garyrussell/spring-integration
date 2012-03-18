@@ -29,7 +29,7 @@ import org.springframework.util.Assert;
  * @since 2.2
  *
  */
-public class XHRStreamingChunkDeserializer extends AbstractSockJsDeerializer<List<SockJsFrame>> {
+public class XHRStreamingChunkDeserializer extends AbstractSockJsDeserializer<List<SockJsFrame>> {
 
 	public List<SockJsFrame> deserialize(InputStream inputStream) throws IOException {
 		List<SockJsFrame> headers = checkStreaming(inputStream);

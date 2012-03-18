@@ -33,7 +33,7 @@ import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
  * @since 2.1
  *
  */
-public abstract class AbstractSockJsDeerializer<T> implements StatefulDeserializer<T> {
+public abstract class AbstractSockJsDeserializer<T> implements StatefulDeserializer<T> {
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 

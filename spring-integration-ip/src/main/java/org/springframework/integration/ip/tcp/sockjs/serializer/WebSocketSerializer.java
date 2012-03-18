@@ -33,7 +33,7 @@ import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
  * @since 2.2
  *
  */
-public class WebSocketSerializer extends AbstractSockJsDeerializer<SockJsFrame> implements Serializer<String> {
+public class WebSocketSerializer extends AbstractSockJsDeserializer<SockJsFrame> implements Serializer<String> {
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 
