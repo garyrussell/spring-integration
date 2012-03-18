@@ -15,7 +15,8 @@
  */
 package org.springframework.integration.ip.tcp.sockjs;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,8 +24,8 @@ import java.util.List;
 import org.junit.Test;
 import org.springframework.integration.ip.tcp.connection.AbstractClientConnectionFactory;
 import org.springframework.integration.ip.tcp.connection.TcpNetClientConnectionFactory;
+import org.springframework.integration.ip.tcp.connection.TcpNioClientConnectionFactory;
 import org.springframework.integration.ip.tcp.serializer.ByteArrayRawSerializer;
-import org.springframework.integration.ip.tcp.sockjs.serializer.WebSocketSerializer;
 import org.springframework.integration.ip.tcp.sockjs.serializer.XHRStreamingChunkDeserializer;
 import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
 
@@ -39,6 +40,16 @@ public class SockJsTemplateTests {
 	public void testXHRStream() throws Exception {
 		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("localhost", 8081);
 //		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("echo-test.cloudfoundry.com", 80);
+		testXHSStreamGuts(ccf);
+	}
+
+	@Test
+	public void testXHRStreamNIO() throws Exception {
+		AbstractClientConnectionFactory ccf = new TcpNioClientConnectionFactory("localhost", 8081);
+		testXHSStreamGuts(ccf);
+	}
+
+	private void testXHSStreamGuts(AbstractClientConnectionFactory ccf) throws Exception {
 		ccf.setDeserializer(new XHRStreamingChunkDeserializer());
 		ccf.setSerializer(new ByteArrayRawSerializer());
 		ccf.setSoTimeout(60000);

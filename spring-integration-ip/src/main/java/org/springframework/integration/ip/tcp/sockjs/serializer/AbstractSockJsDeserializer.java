@@ -37,22 +37,29 @@ public abstract class AbstractSockJsDeserializer<T> implements StatefulDeseriali
 
 	private final Log logger = LogFactory.getLog(this.getClass());
 
-	protected ByteArrayCrLfSerializer crlfDeserializer = new ByteArrayCrLfSerializer();
+	protected final ByteArrayCrLfSerializer crlfDeserializer = new ByteArrayCrLfSerializer();
+
+	protected volatile int maxMessageSize = 2048;
 
 	private final Map<InputStream, Boolean> streaming = new ConcurrentHashMap<InputStream, Boolean>();
+
+	void setMaxMessageSize(int maxMessageSize) {
+		this.maxMessageSize = maxMessageSize;
+	}
 
 	protected List<SockJsFrame> checkStreaming(InputStream inputStream) throws IOException {
 		Boolean isStreaming = this.streaming.get(inputStream);
 		if (isStreaming == null) { //Consume the headers - TODO - check status
-			StringBuilder builder = new StringBuilder();
-			byte[] headers;
+			StringBuilder headersBuilder = new StringBuilder();
+			byte[] headers = new byte[this.maxMessageSize];
+			int headersLength;
 			do {
-				headers = this.crlfDeserializer.deserialize(inputStream);
-				builder.append(new String(headers, "UTF-8")).append("\r\n");
+				headersLength = this.crlfDeserializer.fillToCrLf(inputStream, headers);
+				headersBuilder.append(new String(headers, 0, headersLength, "UTF-8")).append("\r\n");
 			}
-			while (headers.length > 0);
+			while (headersLength > 0);
 			this.streaming.put(inputStream, Boolean.TRUE);
-			return decodeHeaders(builder.toString());
+			return decodeHeaders(headersBuilder.toString());
 		}
 		return null;
 	}
