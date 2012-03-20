@@ -152,8 +152,7 @@ public class SockJsTemplate implements TcpListener, SockJsOperations {
 				context.getCookies() + "\r\n" +
 				"Content-Length: " + data.length() + "\r\n" +
 				"\r\n" +
-				data +
-				"\r\n"));
+				data));
 			SockJsFrame frame = reply.poll(10, TimeUnit.SECONDS);
 			connection.close();
 			return frame;

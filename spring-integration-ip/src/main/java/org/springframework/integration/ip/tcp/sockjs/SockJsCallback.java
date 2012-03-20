@@ -24,10 +24,6 @@ import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
  */
 public interface SockJsCallback {
 
-	public static final String OPEN = "o";
-
-	public static final String HEARTBEAT = "h";
-	
 	void data(SockJsFrame frame, String uuid);
 
 	void control(SockJsFrame frame, String uuid);
