@@ -46,11 +46,21 @@ public class SockJsTemplate implements TcpListener, SockJsOperations {
 
 	private final AbstractClientConnectionFactory connectionFactory;
 
+	private boolean gzipping;
+
 	public SockJsTemplate(AbstractClientConnectionFactory connectionFactory) {
 		this.connectionFactory = connectionFactory;
 		this.connectionFactory.registerListener(this);
 	}
 	
+	boolean isGzipping() {
+		return gzipping;
+	}
+
+	void setGzipping(boolean gzipping) {
+		this.gzipping = gzipping;
+	}
+
 	public SockJsContext startStream(String baseResource, final SockJsCallback callback) {
 		final String uuid = UUID.randomUUID().toString(); 
 		SockJsContext sockJsContext = new SockJsContext(uuid);
@@ -62,7 +72,7 @@ public class SockJsTemplate implements TcpListener, SockJsOperations {
 				"POST " + baseResource + "/" + uuid + "/xhr_streaming HTTP/1.1\r\n" +
 				"Host: " + this.connectionFactory.getHost() + "\r\n" +
 				"Connection: keep-alive\r\n" +
-				"Accept-Encoding: identity\r\n" +
+				"Accept-Encoding: " + (this.gzipping ? "gzip" : "identity") + "\r\n" +
 				"Content-Length: 0\r\n" +
 				"\r\n"));
 		}

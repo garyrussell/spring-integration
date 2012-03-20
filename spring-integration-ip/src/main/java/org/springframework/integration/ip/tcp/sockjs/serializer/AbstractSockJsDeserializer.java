@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,36 +36,43 @@ import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
  */
 public abstract class AbstractSockJsDeserializer<T> implements StatefulDeserializer<T> {
 
-	private final Log logger = LogFactory.getLog(this.getClass());
+	protected final Log logger = LogFactory.getLog(this.getClass());
 
 	protected final ByteArrayCrLfSerializer crlfDeserializer = new ByteArrayCrLfSerializer();
 
 	protected volatile int maxMessageSize = 2048;
 
-	private final Map<InputStream, Boolean> streaming = new ConcurrentHashMap<InputStream, Boolean>();
+	private final Map<InputStream, BasicState> streamState = new ConcurrentHashMap<InputStream, BasicState>();
 
 	void setMaxMessageSize(int maxMessageSize) {
 		this.maxMessageSize = maxMessageSize;
 	}
 
+	protected BasicState getStreamState(InputStream inputStream) {
+		return streamState.get(inputStream);
+	}
+
 	protected List<SockJsFrame> checkStreaming(InputStream inputStream) throws IOException {
-		Boolean isStreaming = this.streaming.get(inputStream);
+		BasicState isStreaming = this.streamState.get(inputStream);
 		if (isStreaming == null) { //Consume the headers - TODO - check status
 			StringBuilder headersBuilder = new StringBuilder();
 			byte[] headers = new byte[this.maxMessageSize];
 			int headersLength;
 			do {
 				headersLength = this.crlfDeserializer.fillToCrLf(inputStream, headers);
-				headersBuilder.append(new String(headers, 0, headersLength, "UTF-8")).append("\r\n");
+				String header = new String(headers, 0, headersLength, "UTF-8");
+				headersBuilder.append(header).append("\r\n");
 			}
 			while (headersLength > 0);
-			this.streaming.put(inputStream, Boolean.TRUE);
-			return decodeHeaders(headersBuilder.toString());
+			BasicState basicState = new BasicState();
+			List<SockJsFrame> decodedHeaders = decodeHeaders(headersBuilder.toString(), basicState);
+			this.streamState.put(inputStream, basicState);
+			return decodedHeaders;
 		}
 		return null;
 	}
 
-	private List<SockJsFrame> decodeHeaders(String frameData) {
+	private List<SockJsFrame> decodeHeaders(String frameData, BasicState state) {
 		// TODO: Full header separation - mvc utils?
 		List<SockJsFrame> dataList = new ArrayList<SockJsFrame>();
 		System.out.println("Received:Headers\r\n" + frameData);
@@ -74,6 +82,9 @@ public abstract class AbstractSockJsDeserializer<T> implements StatefulDeseriali
 			if (header.startsWith("Set-Cookie")) {
 				String[] bits = header.split(": *");
 				cookies += bits[1] + "; ";
+			}
+			else if (header.startsWith("Content-Encoding:") && header.contains("gzip")) {
+				state.setGzipping(true);
 			}
 		}
 		System.out.println(cookies);
@@ -92,7 +103,7 @@ public abstract class AbstractSockJsDeserializer<T> implements StatefulDeseriali
 	}
 
 	public void removeState(InputStream inputStream) {
-		this.streaming.remove(inputStream);
+		this.streamState.remove(inputStream);
 	}
 
 	public abstract T deserialize(InputStream inputStream) throws IOException;
@@ -124,4 +135,50 @@ public abstract class AbstractSockJsDeserializer<T> implements StatefulDeseriali
 		}
 	}
 
+	public static class BasicState {
+
+		private volatile boolean gzipping;
+
+		private volatile GZIPInputStream gzipInputStream;
+
+		private volatile GZIPFeederInputStream gzipFeederInputStream;
+
+		boolean isGzipping() {
+			return gzipping;
+		}
+
+		void setGzipping(boolean gzipping) {
+			this.gzipping = gzipping;
+		}
+
+		GZIPInputStream getGzipInputStream() throws IOException {
+			if (this.gzipInputStream == null) {
+				this.gzipInputStream = new GZIPInputStream(this.gzipFeederInputStream);
+			}
+			return this.gzipInputStream;
+		}
+
+		GZIPFeederInputStream getGzipFeederInputStream() {
+			if (this.gzipFeederInputStream == null) {
+				this.gzipFeederInputStream = new GZIPFeederInputStream();
+			}
+			return gzipFeederInputStream;
+		}
+	}
+
+	public static class GZIPFeederInputStream extends InputStream {
+
+		private volatile InputStream inputStream;
+
+
+		void setInputStream(InputStream inputStream) {
+			this.inputStream = inputStream;
+		}
+
+		@Override
+		public int read() throws IOException {
+			return this.inputStream.read();
+		}
+
+	}
 }

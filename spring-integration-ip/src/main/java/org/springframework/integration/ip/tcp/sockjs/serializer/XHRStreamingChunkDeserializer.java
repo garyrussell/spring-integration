@@ -15,10 +15,12 @@
  */
 package org.springframework.integration.ip.tcp.sockjs.serializer;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 import org.springframework.integration.ip.tcp.serializer.SoftEndOfStreamException;
 import org.springframework.integration.ip.tcp.sockjs.support.SockJsFrame;
@@ -36,6 +38,8 @@ public class XHRStreamingChunkDeserializer extends AbstractSockJsDeserializer<Li
 		if (headers != null) {
 			return headers;
 		}
+		BasicState state = this.getStreamState(inputStream);
+		boolean gzipping = state == null ? false : state.isGzipping();
 		boolean complete = false;
 		StringBuilder builder = new StringBuilder();
 		while (!complete) {
@@ -50,6 +54,9 @@ public class XHRStreamingChunkDeserializer extends AbstractSockJsDeserializer<Li
 			catch (Exception e) {
 				e.printStackTrace();
 			}
+			if (logger.isDebugEnabled()) {
+				logger.debug("Chunk size = " + chunkLength);
+			}
 			if (chunkLength <= 0) {
 				throw new SoftEndOfStreamException("0 length chunk received");
 			}
@@ -60,13 +67,32 @@ public class XHRStreamingChunkDeserializer extends AbstractSockJsDeserializer<Li
 				chunk[i] = (byte) c;
 			}
 			int eom = chunk[chunkLength-1];
-			complete = eom == '\n';
 			Assert.isTrue(inputStream.read() == '\r', "Expected \\r");
 			Assert.isTrue(inputStream.read() == '\n', "Expected \\n");
 			int adjust = complete ? 1 : 0;
-			String data = new String(chunk, 0, chunkLength - adjust, "UTF-8");
+			String data;
+			if (gzipping) {
+				byte[] unzipped = new byte[this.maxMessageSize];
+				GZIPFeederInputStream feeder = state.getGzipFeederInputStream();
+				ByteArrayInputStream byteStream = new ByteArrayInputStream(chunk, 0, chunkLength - adjust);
+				feeder.setInputStream(byteStream);
+				GZIPInputStream gzipInputStream = state.getGzipInputStream();
+				while (byteStream.available() > 0) {
+					int decodedLength = gzipInputStream.read(unzipped);
+					if (logger.isDebugEnabled()) {
+						logger.debug("Inflated to " + decodedLength);
+					}
+					data = new String(unzipped, 0, decodedLength, "UTF-8");
+					builder.append(data);
+				}
+				eom = builder.charAt(builder.length()-1);
+			}
+			else {
+				data = new String(chunk, 0, chunkLength - adjust, "UTF-8");
+				builder.append(data);
+			}
+			complete = eom == '\n';
 //			System.out.println(data.length() + ":" + data);
-			builder.append(data);
 		}
 		return this.decodeFrameData(builder.toString());
 	}

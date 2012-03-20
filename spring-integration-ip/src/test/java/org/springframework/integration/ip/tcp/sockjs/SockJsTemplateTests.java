@@ -49,22 +49,34 @@ public class SockJsTemplateTests {
 		testXHSStreamGuts(ccf);
 	}
 
+	@Test
+	public void testXHRStreamGzip() throws Exception {
+//		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("localhost", 8081);
+		AbstractClientConnectionFactory ccf = new TcpNetClientConnectionFactory("echo-test.cloudfoundry.com", 80);
+		testXHSStreamGuts(ccf, true);
+	}
+
 	private void testXHSStreamGuts(AbstractClientConnectionFactory ccf) throws Exception {
+		testXHSStreamGuts(ccf, false);
+	}
+
+	private void testXHSStreamGuts(AbstractClientConnectionFactory ccf, boolean gzipping) throws Exception {
 		ccf.setDeserializer(new XHRStreamingChunkDeserializer());
 		ccf.setSerializer(new ByteArrayRawSerializer());
 		ccf.setSoTimeout(60000);
-		SockJsOperations template = new SockJsTemplate(ccf);
+		SockJsTemplate template = new SockJsTemplate(ccf);
+		template.setGzipping(gzipping);
 		ccf.start();
 		final List<String> uuids = new ArrayList<String>();
 		final List<String> results = new ArrayList<String>();
-		
+
 		SockJsContext context = template.startStream("/echo/000", new SockJsCallback() {
-			
+
 			public void data(SockJsFrame frame, String uuid) {
 				System.out.println("Received data: " + frame);
 				results.add(frame.getPayload());
 			}
-			
+
 			public void control(SockJsFrame frame, String uuid) {
 				System.out.println("Received control: " + frame);
 				if (frame.getType() == SockJsFrame.TYPE_OPEN) {
@@ -76,12 +88,19 @@ public class SockJsTemplateTests {
 				System.out.println("Closed");
 			}
 		});
-		
+
 		int n = 0;
 		while (context.getCookies() == null) {
 			Thread.sleep(100);
 			if (n++ > 100) {
 				fail("Failed to receive cookies");
+			}
+		}
+		n = 0;
+		while (uuids.size() < 1) {
+			Thread.sleep(100);
+			if (n++ > 100) {
+				fail("Open was not received");
 			}
 		}
 		for (int i = 0; i < 4; i++) {
