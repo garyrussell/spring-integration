@@ -16,6 +16,8 @@
 
 package org.springframework.integration.ip.tcp.connection;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.nio.channels.SocketChannel;
 
@@ -148,5 +150,10 @@ public interface TcpConnection extends Runnable {
 	 * @return the next sequence number for a message received on this socket
 	 */
 	long incrementAndGetConnectionSequence();
-	
+
+	/**
+	 * @return the Inputstream
+	 * @throws IOException
+	 */
+	InputStream getInputStream() throws IOException;
 }

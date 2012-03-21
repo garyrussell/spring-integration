@@ -57,6 +57,20 @@ public abstract class AbstractClientConnectionFactory extends AbstractConnection
 		}
 	}
 
+	/**
+	 * Get a dedicated long-lived connection - regardless of single-use
+	 * setting. Caller is responsible to close.
+	 * @return
+	 * @throws Exception
+	 */
+	public abstract TcpConnection getNewConnection() throws Exception;
+
+
+	/**
+	 * Gets the single or new connection.
+	 * @return
+	 * @throws Exception
+	 */
 	protected abstract TcpConnection getOrMakeConnection() throws Exception;
 
 	/**

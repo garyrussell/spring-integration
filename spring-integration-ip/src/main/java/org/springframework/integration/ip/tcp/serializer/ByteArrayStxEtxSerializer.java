@@ -62,8 +62,7 @@ public class ByteArrayStxEtxSerializer extends AbstractByteArraySerializer {
 						+ this.maxMessageSize);
 			}
 		}
-		byte[] assembledData = new byte[n];
-		System.arraycopy(buffer, 0, assembledData, 0, n);
+		byte[] assembledData = this.copyToSizedArray(buffer, n);
 		return assembledData;
 	}
 
