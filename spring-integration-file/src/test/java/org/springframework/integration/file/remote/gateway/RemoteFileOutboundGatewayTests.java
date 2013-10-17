@@ -15,10 +15,15 @@
  */
 package org.springframework.integration.file.remote.gateway;
 
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -36,16 +41,21 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.Message;
 import org.springframework.integration.MessagingException;
 import org.springframework.integration.file.FileHeaders;
 import org.springframework.integration.file.filters.AbstractSimplePatternFileListFilter;
 import org.springframework.integration.file.remote.AbstractFileInfo;
+import org.springframework.integration.file.remote.gateway.AbstractRemoteFileOutboundGateway.MputElement;
+import org.springframework.integration.file.remote.handler.FileTransferringMessageHandler;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.message.GenericMessage;
@@ -61,6 +71,9 @@ import org.springframework.integration.support.MessageBuilder;
 public class RemoteFileOutboundGatewayTests {
 
 	private final String tmpDir = System.getProperty("java.io.tmpdir");
+
+	@Rule
+	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
 
 	@Test(expected=IllegalArgumentException.class)
@@ -806,6 +819,87 @@ public class RemoteFileOutboundGatewayTests {
 				out.getHeaders().get(FileHeaders.REMOTE_DIRECTORY));
 		assertEquals("f1",
 				out.getHeaders().get(FileHeaders.REMOTE_FILE));
+	}
+
+	@Test
+	public void testPut() throws Exception {
+		@SuppressWarnings("unchecked")
+		SessionFactory<TestLsEntry> sessionFactory = mock(SessionFactory.class);
+		@SuppressWarnings("unchecked")
+		Session<TestLsEntry> session = mock(Session.class);
+		TestRemoteFileOutboundGateway gw = new TestRemoteFileOutboundGateway
+			(sessionFactory, "put", null);
+		FileTransferringMessageHandler<TestLsEntry> handler = new FileTransferringMessageHandler<TestLsEntry>(sessionFactory);
+		handler.setRemoteDirectoryExpression(new LiteralExpression("foo/"));
+		handler.setBeanFactory(mock(BeanFactory.class));
+		handler.afterPropertiesSet();
+		gw.setFileTransferringMessageHandler(handler);
+		gw.afterPropertiesSet();
+		when(sessionFactory.getSession()).thenReturn(session);
+		final AtomicReference<String> written = new AtomicReference<String>();
+		doAnswer(new Answer<Object>() {
+
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Throwable {
+				written.set((String) invocation.getArguments()[1]);
+				return null;
+			}
+		}).when(session).write(any(InputStream.class), anyString());
+		Message<String> requestMessage = MessageBuilder.withPayload("hello")
+				.setHeader(FileHeaders.FILENAME, "bar.txt")
+				.build();
+		@SuppressWarnings("unchecked")
+		Message<String> out = (Message<String>) gw.handleRequestMessage(requestMessage);
+		assertEquals(requestMessage.getPayload(), out.getPayload());
+		assertEquals("foo/", out.getHeaders().get(FileHeaders.REMOTE_DIRECTORY));
+		assertEquals("bar.txt",
+				out.getHeaders().get(FileHeaders.REMOTE_FILE));
+		verify(session).rename("foo/bar.txt.writing", "foo/bar.txt");
+	}
+
+	@Test
+	public void testMput() throws Exception {
+		@SuppressWarnings("unchecked")
+		SessionFactory<TestLsEntry> sessionFactory = mock(SessionFactory.class);
+		@SuppressWarnings("unchecked")
+		Session<TestLsEntry> session = mock(Session.class);
+		TestRemoteFileOutboundGateway gw = new TestRemoteFileOutboundGateway
+			(sessionFactory, "mput", null);
+		FileTransferringMessageHandler<TestLsEntry> handler = new FileTransferringMessageHandler<TestLsEntry>(sessionFactory);
+		handler.setRemoteDirectoryExpression(new LiteralExpression("foo/"));
+		handler.setBeanFactory(mock(BeanFactory.class));
+		handler.afterPropertiesSet();
+		gw.setFileTransferringMessageHandler(handler);
+		gw.afterPropertiesSet();
+		when(sessionFactory.getSession()).thenReturn(session);
+		final AtomicReference<String> written = new AtomicReference<String>();
+		doAnswer(new Answer<Object>() {
+
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Throwable {
+				written.set((String) invocation.getArguments()[1]);
+				return null;
+			}
+		}).when(session).write(any(InputStream.class), anyString());
+		File file1 = tempFolder.newFile("baz.txt");
+		File file2 = tempFolder.newFile("qux.txt");
+		Message<File> requestMessage = MessageBuilder.withPayload(tempFolder.getRoot())
+				.build();
+		@SuppressWarnings("unchecked")
+		Message<List<MputElement>> out = (Message<List<MputElement>>) gw.handleRequestMessage(requestMessage);
+		assertEquals(2, out.getPayload().size());
+		assertThat(out.getPayload().get(0).getFileName(),
+				not(equalTo(out.getPayload().get(1).getFileName())));
+		assertThat(out.getPayload().get(0).getFileName(), anyOf(
+				equalTo(file1.getAbsolutePath()), equalTo(file2.getAbsolutePath())));
+		assertThat(out.getPayload().get(1).getFileName(), anyOf(
+				equalTo(file1.getAbsolutePath()), equalTo(file2.getAbsolutePath())));
+		assertThat(out.getPayload().get(0).getRemoteDirectory(), equalTo("foo/"));
+		assertThat(out.getPayload().get(1).getRemoteDirectory(), equalTo("foo/"));
+		assertThat(out.getPayload().get(0).getRemoteFileName(), anyOf(
+				equalTo(file1.getName()), equalTo(file2.getName())));
+		assertThat(out.getPayload().get(1).getRemoteFileName(), anyOf(
+				equalTo(file1.getName()), equalTo(file2.getName())));
 	}
 
 }

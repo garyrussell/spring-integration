@@ -19,6 +19,7 @@ package org.springframework.integration.handler;
 import java.util.List;
 
 import org.aopalliance.aop.Advice;
+
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.integration.Message;
@@ -89,6 +90,10 @@ public abstract class AbstractReplyProducingMessageHandler extends AbstractMessa
 	 */
 	public void setRequiresReply(boolean requiresReply) {
 		this.requiresReply = requiresReply;
+	}
+
+	protected boolean isRequiresReply() {
+		return requiresReply;
 	}
 
 	/**

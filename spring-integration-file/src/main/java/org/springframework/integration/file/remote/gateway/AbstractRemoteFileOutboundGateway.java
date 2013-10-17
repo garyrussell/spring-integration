@@ -34,12 +34,15 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.Message;
+import org.springframework.integration.MessageHeaders;
 import org.springframework.integration.MessagingException;
+import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.file.FileHeaders;
 import org.springframework.integration.file.filters.FileListFilter;
 import org.springframework.integration.file.remote.AbstractFileInfo;
 import org.springframework.integration.file.remote.RemoteFileUtils;
+import org.springframework.integration.file.remote.handler.FileTransferringMessageHandler;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.handler.AbstractReplyProducingMessageHandler;
@@ -90,7 +93,17 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 		/**
 		 * Move (rename) a remote file.
 		 */
-		MV("mv");
+		MV("mv"),
+
+		/**
+		 * Put a local file to the remote system.
+		 */
+		PUT("put"),
+
+		/**
+		 * Put multiple local files to the remote system.
+		 */
+		MPUT("mput");
 
 		private String command;
 
@@ -199,8 +212,9 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 	 */
 	private volatile FileListFilter<F> filter;
 
-
 	private volatile Expression localFilenameGeneratorExpression;
+
+	private volatile FileTransferringMessageHandler<F> fileTransferringMessageHandler;
 
 	public AbstractRemoteFileOutboundGateway(SessionFactory<F> sessionFactory, String command,
 			String expression) {
@@ -284,6 +298,10 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 		this.localFilenameGeneratorExpression = localFilenameGeneratorExpression;
 	}
 
+	public void setFileTransferringMessageHandler(FileTransferringMessageHandler<F> fileTransferringMessageHandler) {
+		this.fileTransferringMessageHandler = fileTransferringMessageHandler;
+	}
+
 
 	@Override
 	protected void onInit() {
@@ -331,23 +349,40 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 			this.fileNameProcessor.setBeanFactory(this.getBeanFactory());
 			this.renameProcessor.setBeanFactory(this.getBeanFactory());
 		}
+		if (this.fileTransferringMessageHandler != null) {
+			this.fileTransferringMessageHandler.setRequiresReply(true);
+			this.fileTransferringMessageHandler.setOutputChannel(null);
+		}
+		else {
+			Assert.isTrue(this.command != Command.PUT && this.command != Command.MPUT,
+					"A FileTransferringMessageHandler is required for 'put' and 'mput'");
+		}
 	}
 
 	@Override
 	protected Object handleRequestMessage(Message<?> requestMessage) {
-		Session<F> session = this.sessionFactory.getSession();
+		Session<F> session = null;
 		try {
 			switch (this.command) {
 			case LS:
+				session = this.sessionFactory.getSession();
 				return doLs(requestMessage, session);
 			case GET:
+				session = this.sessionFactory.getSession();
 				return doGet(requestMessage, session);
 			case MGET:
+				session = this.sessionFactory.getSession();
 				return doMget(requestMessage, session);
 			case RM:
+				session = this.sessionFactory.getSession();
 				return doRm(requestMessage, session);
 			case MV:
+				session = this.sessionFactory.getSession();
 				return doMv(requestMessage, session);
+			case PUT:
+				return doPut(requestMessage);
+			case MPUT:
+				return doMput(requestMessage);
 			default:
 				return null;
 			}
@@ -356,7 +391,9 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 			throw new MessagingException(requestMessage, e);
 		}
 		finally {
-			session.close();
+			if (session != null) {
+				session.close();
+			}
 		}
 	}
 
@@ -417,6 +454,51 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 			.setHeader(FileHeaders.REMOTE_FILE, remoteFilename)
 			.setHeader(FileHeaders.RENAME_TO, remoteFileNewPath)
 			.build();
+	}
+
+	private Message<?> doPut(Message<?> requestMessage) throws IOException {
+		QueueChannel replyChannel = new QueueChannel();
+		this.fileTransferringMessageHandler.handleMessage(
+				MessageBuilder.fromMessage(requestMessage)
+					.setHeader(MessageHeaders.REPLY_CHANNEL, replyChannel)
+					.build());
+		Message<?> reply = replyChannel.receive(0);
+		Assert.notNull(reply, "No reply message received");
+		return MessageBuilder.fromMessage(reply)
+				.setHeader(MessageHeaders.REPLY_CHANNEL, null)
+				.build();
+	}
+
+	private Message<?> doMput(Message<?> requestMessage) throws IOException {
+		File file = null;
+		if (requestMessage.getPayload() instanceof File) {
+			file = (File) requestMessage.getPayload();
+		}
+		else if (requestMessage.getPayload() instanceof String) {
+			file = new File((String) requestMessage.getPayload());
+		}
+		else {
+			throw new IllegalArgumentException("Only File or String payloads allowed for 'mput'");
+		}
+		if (!file.isDirectory()) {
+			return this.doPut(requestMessage);
+		}
+		else {
+			File[] files = file.listFiles();
+			List<MputElement> replies = new ArrayList<MputElement>();
+			for (File fyle : files) {
+				// TODO: recursion into local dir
+				if (!fyle.isDirectory()) {
+					Message<?> reply = this.doPut(MessageBuilder.withPayload(fyle)
+							.copyHeaders(requestMessage.getHeaders())
+							.build());
+					replies.add(new MputElement(fyle.getAbsolutePath(),
+							(String) reply.getHeaders().get(FileHeaders.REMOTE_DIRECTORY),
+							(String) reply.getHeaders().get(FileHeaders.REMOTE_FILE)));
+				}
+			}
+			return MessageBuilder.withPayload(replies).build();
+		}
 	}
 
 	protected List<?> ls(Session<F> session, String dir) throws IOException {
@@ -707,4 +789,36 @@ public abstract class AbstractRemoteFileOutboundGateway<F> extends AbstractReply
 	abstract protected List<AbstractFileInfo<F>> asFileInfoList(Collection<F> files);
 
 	abstract protected F enhanceNameWithSubDirectory(F file, String directory);
+
+	/**
+	 * Represents the results of putting a single file from an mput operation.
+	 */
+	public class MputElement {
+
+		private final String fileName;
+
+		private final String remoteDirectory;
+
+		private final String remoteFileName;
+
+		private MputElement(String fileName, String remoteDirectory, String remoteFileName) {
+			this.fileName = fileName;
+			this.remoteDirectory = remoteDirectory;
+			this.remoteFileName = remoteFileName;
+		}
+
+		public String getFileName() {
+			return fileName;
+		}
+
+		public String getRemoteDirectory() {
+			return remoteDirectory;
+		}
+
+		public String getRemoteFileName() {
+			return remoteFileName;
+		}
+
+	}
+
 }
