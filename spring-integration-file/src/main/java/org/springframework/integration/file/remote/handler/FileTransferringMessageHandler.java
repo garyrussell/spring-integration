@@ -31,12 +31,14 @@ import org.springframework.integration.Message;
 import org.springframework.integration.MessageDeliveryException;
 import org.springframework.integration.MessagingException;
 import org.springframework.integration.file.DefaultFileNameGenerator;
+import org.springframework.integration.file.FileHeaders;
 import org.springframework.integration.file.FileNameGenerator;
 import org.springframework.integration.file.remote.RemoteFileUtils;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
-import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.handler.AbstractReplyProducingMessageHandler;
 import org.springframework.integration.handler.ExpressionEvaluatingMessageProcessor;
+import org.springframework.integration.support.MessageBuilder;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -51,7 +53,7 @@ import org.springframework.util.StringUtils;
  * @author Gary Russell
  * @since 2.0
  */
-public class FileTransferringMessageHandler<F> extends AbstractMessageHandler {
+public class FileTransferringMessageHandler<F> extends AbstractReplyProducingMessageHandler {
 
 	private volatile String temporaryFileSuffix =".writing";
 
@@ -138,7 +140,7 @@ public class FileTransferringMessageHandler<F> extends AbstractMessageHandler {
 	}
 
 	@Override
-	protected void onInit() throws Exception {
+	protected void onInit() {
 		Assert.notNull(this.directoryExpressionProcessor, "remoteDirectoryExpression is required");
 		BeanFactory beanFactory = this.getBeanFactory();
 		if (beanFactory != null) {
@@ -159,13 +161,14 @@ public class FileTransferringMessageHandler<F> extends AbstractMessageHandler {
 	}
 
 	@Override
-	protected void handleMessageInternal(Message<?> message) throws Exception {
+	protected Object handleRequestMessage(Message<?> message) {
 		StreamHolder inputStreamHolder = this.payloadToInputStream(message);
 		if (inputStreamHolder != null) {
 			Session<F> session = this.sessionFactory.getSession();
 			String fileName = inputStreamHolder.getName();
+			String remoteDirectory = null;
 			try {
-				String remoteDirectory = this.directoryExpressionProcessor.processMessage(message);
+				remoteDirectory = this.directoryExpressionProcessor.processMessage(message);
 				String temporaryRemoteDirectory = remoteDirectory;
 				if (this.temporaryDirectoryExpressionProcessor != null){
 					temporaryRemoteDirectory = this.temporaryDirectoryExpressionProcessor.processMessage(message);
@@ -190,6 +193,12 @@ public class FileTransferringMessageHandler<F> extends AbstractMessageHandler {
 					session.close();
 				}
 			}
+			if (this.isRequiresReply()) {
+				return MessageBuilder.fromMessage(message)
+						.setHeader(FileHeaders.REMOTE_DIRECTORY, remoteDirectory)
+						.setHeader(FileHeaders.REMOTE_FILE, fileName)
+						.build();
+			}
 		}
 		else {
 			// A null holder means a File payload that does not exist.
@@ -197,6 +206,7 @@ public class FileTransferringMessageHandler<F> extends AbstractMessageHandler {
 				logger.warn("File " + message.getPayload() + " does not exist");
 			}
 		}
+		return null;
 	}
 
 	private StreamHolder payloadToInputStream(Message<?> message) throws MessageDeliveryException {

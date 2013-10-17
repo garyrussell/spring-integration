@@ -16,6 +16,9 @@
 
 package org.springframework.integration.ftp.outbound;
 
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -33,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.integration.Message;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.core.PollableChannel;
+import org.springframework.integration.file.remote.gateway.AbstractRemoteFileOutboundGateway.MputElement;
 import org.springframework.integration.ftp.TesFtpServer;
 import org.springframework.integration.message.GenericMessage;
 import org.springframework.test.context.ContextConfiguration;
@@ -67,10 +71,13 @@ public class FtpServerOutboundTests {
 	@Autowired
 	private DirectChannel inboundMGetRecursiveFiltered;
 
+	@Autowired
+	private DirectChannel inboundMPut;
+
 	@Before
 	public void setup() {
-		TesFtpServer.recursiveDelete(ftpServer.getTargetLocalDirectory());
-		TesFtpServer.recursiveDelete(ftpServer.getTargetFtpDirectory());
+		this.ftpServer.recursiveDelete(ftpServer.getTargetLocalDirectory());
+		this.ftpServer.recursiveDelete(ftpServer.getTargetFtpDirectory());
 	}
 
 	@Test
@@ -167,6 +174,29 @@ public class FtpServerOutboundTests {
 		}
 		assertThat(localFiles.get(1).getPath().replaceAll(java.util.regex.Matcher.quoteReplacement(File.separator), "/"),
 				Matchers.containsString(dir + "subFtpSource"));
+
+	}
+
+	@Test
+	public void testInt3088MPut() {
+		this.inboundMPut.send(new GenericMessage<File>(this.ftpServer.getSourceLocalDirectory()));
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		Message<List<MputElement>> out = (Message<List<MputElement>>) this.output.receive(1000);
+		assertNotNull(out);
+		assertEquals(2, out.getPayload().size());
+		String sourceDir = this.ftpServer.getSourceLocalDirectory().getAbsolutePath() + File.separator;
+		assertThat(out.getPayload().get(0).getFileName(),
+				not(equalTo(out.getPayload().get(1).getFileName())));
+		assertThat(out.getPayload().get(0).getFileName(), anyOf(
+				equalTo(sourceDir + "localSource1.txt"), equalTo(sourceDir + "localSource2.txt")));
+		assertThat(out.getPayload().get(1).getFileName(), anyOf(
+				equalTo(sourceDir + "localSource1.txt"), equalTo(sourceDir + "localSource2.txt")));
+		assertThat(out.getPayload().get(0).getRemoteDirectory(), equalTo("ftpTarget"));
+		assertThat(out.getPayload().get(1).getRemoteDirectory(), equalTo("ftpTarget"));
+		assertThat(out.getPayload().get(0).getRemoteFileName(), anyOf(
+				equalTo("localSource1.txt"), equalTo("localSource2.txt")));
+		assertThat(out.getPayload().get(1).getRemoteFileName(), anyOf(
+				equalTo("localSource1.txt"), equalTo("localSource2.txt")));
 
 	}
 

@@ -71,6 +71,10 @@ public abstract class AbstractRemoteFileOutboundGatewayParser extends AbstractCo
 			localFileGeneratorExpressionBuilder.addConstructorArgValue(localFileGeneratorExpression);
 			builder.addPropertyValue("localFilenameGeneratorExpression", localFileGeneratorExpressionBuilder.getBeanDefinition());
 		}
+		if (element.hasAttribute("remote-directory") || element.hasAttribute("remote-directory-expression")) {
+			builder.addPropertyValue("fileTransferringMessageHandler",
+					new RemoteFileOutboundChannelAdapterParser().parseConsumer(element, parserContext));
+		}
 		return builder;
 	}
 
