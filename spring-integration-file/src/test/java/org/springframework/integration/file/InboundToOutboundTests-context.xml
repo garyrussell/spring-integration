@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-file="http://www.springframework.org/schema/integration/file"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/integration/file http://www.springframework.org/schema/integration/file/spring-integration-file.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+
+	<int-file:inbound-channel-adapter directory="#{systemProperties['java.io.tmpdir'] + T(java.io.File).pathSeparator + 'sifiletestIn'}" 
+		auto-startup="false" channel="out">
+		<int:poller trigger="pollOnceTrigger"/>
+	</int-file:inbound-channel-adapter>
+
+	<bean id="pollOnceTrigger" class="org.springframework.integration.file.InboundToOutboundTests$FireOnceTrigger" />
+
+	<int:channel id="out" />
+
+	<int-file:outbound-channel-adapter channel="out"
+		auto-create-directory="true"
+		delete-source-files="true"
+		directory="#{systemProperties['java.io.tmpdir'] + T(java.io.File).pathSeparator + 'sifiletestOut'}"/>
+
+</beans>
