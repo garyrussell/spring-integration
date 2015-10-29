@@ -37,12 +37,13 @@ import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.integration.channel.QueueChannel;
+import org.springframework.integration.handler.ReplyRequiredException;
+import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.PollableChannel;
-import org.springframework.integration.handler.ReplyRequiredException;
 import org.springframework.messaging.support.GenericMessage;
-import org.springframework.integration.support.MessageBuilder;
 import org.springframework.ws.WebServiceMessage;
 import org.springframework.ws.WebServiceMessageFactory;
 import org.springframework.ws.client.core.WebServiceMessageCallback;
@@ -78,6 +79,7 @@ public class SimpleWebServiceOutboundGatewayTests {
 		SimpleWebServiceOutboundGateway gateway = new SimpleWebServiceOutboundGateway(new TestDestinationProvider(uri));
 		final AtomicReference<String> soapActionFromCallback = new AtomicReference<String>();
 		gateway.setRequestCallback(new WebServiceMessageCallback() {
+			@Override
 			public void doWithMessage(WebServiceMessage message) throws IOException, TransformerException {
 				SoapMessage soapMessage = (SoapMessage) message;
 				soapActionFromCallback.set(soapMessage.getSoapAction());
@@ -119,6 +121,21 @@ public class SimpleWebServiceOutboundGatewayTests {
 		gateway.handleMessage(new GenericMessage<String>("<test>foo</test>"));
 	}
 
+	@Test
+	public void testEmptyResponseBody() throws Exception {
+		SimpleWebServiceOutboundGateway gateway = new SimpleWebServiceOutboundGateway("http://testEmpty");
+		gateway.setRequiresReply(true);
+		QueueChannel out = new QueueChannel();
+		gateway.setOutputChannel(out);
+		gateway.setIgnoreEmptyResponses(false);
+		WebServiceMessageSender messageSender = createMockMessageSender(responseEmptyBodySoapMessage);
+		gateway.setMessageSender(messageSender);
+		gateway.handleMessage(new GenericMessage<String>("<test>foo</test>"));
+		Message<?> received = out.receive(0);
+		assertNotNull(received);
+		assertEquals("", received.getPayload());
+	}
+
 	public static WebServiceMessageSender createMockMessageSender(final String mockResponseMessage) throws Exception {
 		WebServiceMessageSender messageSender = Mockito.mock(WebServiceMessageSender.class);
 		WebServiceConnection wsConnection = Mockito.mock(WebServiceConnection.class);
@@ -126,6 +143,7 @@ public class SimpleWebServiceOutboundGatewayTests {
 		Mockito.when(messageSender.supports(Mockito.any(URI.class))).thenReturn(true);
 
 		Mockito.doAnswer(new Answer<Object>() {
+			@Override
 			public Object answer(InvocationOnMock invocation) throws Exception{
 				Object[] args = invocation.getArguments();
 				WebServiceMessageFactory factory = (WebServiceMessageFactory) args[0];
@@ -143,6 +161,7 @@ public class SimpleWebServiceOutboundGatewayTests {
 			this.uri = URI.create(uri);
 		}
 
+		@Override
 		public URI getDestination() {
 			return this.uri;
 		}
