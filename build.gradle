@@ -298,7 +298,7 @@ project('spring-integration-core') {
 			exclude group: 'org.springframework', module: 'spring-core'
 		}
 //		compile ("org.springframework.cloud:spring-cloud-cluster-core:$springCloudClusterVersion", optional)
-		compile ("io.projectreactor:reactor-stream:$reactorVersion", optional)
+		compile "io.projectreactor:reactor-core:$reactorVersion"
 		compile("com.fasterxml.jackson.core:jackson-databind:$jackson2Version", optional)
 		compile("com.jayway.jsonpath:json-path:$jsonpathVersion", optional)
 		compile("io.fastjson:boon:$boonVersion", optional)
@@ -308,8 +308,7 @@ project('spring-integration-core') {
 //		testCompile ("net.openhft:chronicle:$chronicleVersion")
 //		testCompile ("io.projectreactor:reactor-chronicle:$reactorVersion")
 
-		testCompile "org.testng:testng:6.8.21"
-		testCompile "org.reactivestreams:reactive-streams-tck:1.0.0"
+		testCompile "io.projectreactor:reactor-stream:$reactorVersion"
 	}
 }
 
