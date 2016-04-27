@@ -134,7 +134,6 @@ public interface RemoteFileOperations<F> {
 	 *
 	 * @param callback the ClientCallback.
 	 * @param <T> The type returned by {@link ClientCallback#doWithClient(Object)}.
-	 * @param <C> The type of the underlying client object.
 	 * @return The result of the callback method.
 	 * @since 4.1
 	 */

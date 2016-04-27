@@ -23,6 +23,7 @@ For complete details, see <<metrics-management>> and <<jmx-42-improvements>>.
 
 The `MongoDbMetadataStore` is now available. For more information, see <<mongodb-metadata-store>>.
 
+<<<<<<< HEAD
 [[x4.2-secured-channel-annotation]]
 ==== SecuredChannel Annotation
 
@@ -86,6 +87,20 @@ A new `MessagePreparedStatementSetter` functional interface callback is availabl
 See <<jdbc-outbound-channel-adapter>> for more information.
 
 [[x4.2-general]]
+=======
+==== FTP/SFTP Streaming Inbound Channel Adapters
+
+New inbound channel adapters are provided that return an `InputStream` for each file allowing you to retrieve remote
+files without writing them to the local file system
+See <<ftp-streaming>> and <<sftp-streaming>> for more information.
+
+==== Stream Transformer
+
+A new `StreamTransformer` is provided to transform an `InputStream` payload to either a `byte[]` or `String`.
+See <<stream-transformer>> for more information.
+
+[[x4.3-general]]
+>>>>>>> 287d924... INT-4015: Streaming Remote File Inbound Adapter
 === General Changes
 
 [[x4.2-wire-tap]]
@@ -178,6 +193,7 @@ message headers.
 See <<ip-msg-headers>> for more information.
 
 
+<<<<<<< HEAD
 [[x4.2-tcp-events]]
 ===== TCP Events
 
@@ -194,6 +210,16 @@ See <<tcp-events>> for more information.
 Previously, the `@Poller` on an inbound channel adapter defaulted the `maxMessagesPerPoll` attribute to `-1` (infinity).
 This was inconsistent with the XML configuration of `<inbound-channel-adapter/>` s, which defaults to 1.
 The annotation now defaults this attribute to 1.
+=======
+===== Splitter Changes
+
+The `FileSplitter` will now automatically close an (S)FTP session when the file is completely read.
+This applies when the outbound gateway returns an `InputStream` or the new (S)FTP streaming channel adapters are being
+used.
+See <<file-splitter>> for more information.
+
+==== AMQP Changes
+>>>>>>> 287d924... INT-4015: Streaming Remote File Inbound Adapter
 
 [[x4.2-api-changes]]
 ==== API Changes
@@ -292,7 +318,17 @@ The default is now `500 Internal Server Error` instead of `200 OK`.
 
 See <<http-response-statuscode>> for more information.
 
+<<<<<<< HEAD
 ===== Form Data
+=======
+===== Session Changes
+
+The `FtpSession` now supports `null` for the `list()` and `listNames()` method, since it is possible by the
+underlying FTP Client.
+With that the `FtpOutboundGateway` can now be configured without `remoteDirectory` expression.
+And the `<int-ftp:inbound-channel-adapter>` can be configured without `remote-directory`/`remote-directory-expression`.
+See <<ftp>> for more information.
+>>>>>>> 287d924... INT-4015: Streaming Remote File Inbound Adapter
 
 Documentation is provided for when proxying `multipart/form-data` requests.
 See <<http>> for more information.
