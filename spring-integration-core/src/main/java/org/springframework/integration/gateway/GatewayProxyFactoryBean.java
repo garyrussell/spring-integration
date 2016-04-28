@@ -347,7 +347,7 @@ public class GatewayProxyFactoryBean extends AbstractEndpoint
 				}
 			}
 		}
-		if (reactorPresent && Publisher.class.isAssignableFrom(returnType)) {
+		if (reactorPresent && Mono.class.isAssignableFrom(returnType)) {
 			return Mono.fromCallable(new AsyncInvocationTask(invocation));
 		}
 		return this.doInvoke(invocation, true);
