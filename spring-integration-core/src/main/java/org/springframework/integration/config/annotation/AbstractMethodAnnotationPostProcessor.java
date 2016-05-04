@@ -253,7 +253,7 @@ public abstract class AbstractMethodAnnotationPostProcessor<T extends Annotation
 				}
 				else {
 					throw new IllegalArgumentException("Invalid advice chain type:" +
-						adviceChainName.getClass().getName() + " for bean '" + beanName + "'");
+							adviceChainName.getClass().getName() + " for bean '" + beanName + "'");
 				}
 			}
 			((AbstractReplyProducingMessageHandler) handler).setAdviceChain(adviceChain);
@@ -282,7 +282,8 @@ public abstract class AbstractMethodAnnotationPostProcessor<T extends Annotation
 	}
 
 	@SuppressWarnings("unchecked")
-	protected AbstractEndpoint doCreateEndpoint(MessageHandler handler, MessageChannel inputChannel,List<Annotation> annotations) {
+	protected AbstractEndpoint doCreateEndpoint(MessageHandler handler, MessageChannel inputChannel,
+			List<Annotation> annotations) {
 		AbstractEndpoint endpoint;
 		if (inputChannel instanceof PollableChannel) {
 			PollingConsumer pollingConsumer = new PollingConsumer((PollableChannel) inputChannel, handler);
@@ -397,7 +398,7 @@ public abstract class AbstractMethodAnnotationPostProcessor<T extends Annotation
 		return name + IntegrationConfigUtils.HANDLER_ALIAS_SUFFIX;
 	}
 
-	protected void setOutputChannelIfPresent(List<Annotation> annotations, AbstractReplyProducingMessageHandler	handler) {
+	protected void setOutputChannelIfPresent(List<Annotation> annotations, AbstractReplyProducingMessageHandler handler) {
 		String outputChannelName = MessagingAnnotationUtils.resolveAttribute(annotations, "outputChannel", String.class);
 		if (StringUtils.hasText(outputChannelName)) {
 			handler.setOutputChannelName(outputChannelName);
