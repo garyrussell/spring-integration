@@ -1,11 +1,11 @@
 [[integration-graph]]
 === Integration Graph
 
-Starting with _version 4.3_, the Spring Integration provides runtime object model, which, together with the Component Metrics (see <<metrics-management>>), can be exposed as a graph, which may be used to visualize the current state of the integration application.
-The `o.s.i.support.management.graph` package contains all the required classes to collect, build and render the runtime states of Spring Integration components as a single tree-like `Graph` object.
-The `IntegrationGraphServer` should be used as a bean to build, retrieve and refresh `Graph` object.
-The result `Graph` object can be serialized to any format, although JSON is much flexible and easier to build, parse and represent on the client side.
-Typical Spring Integration application may have such a graph model:
+Starting with _version 4.3_, Spring Integration provides access to an application's runtime object model which can, optionally, include component metrics. It is exposed as a graph, which may be used to visualize the current state of the integration application.
+The `o.s.i.support.management.graph` package contains all the required classes to collect, build and render the runtime state of Spring Integration components as a single tree-like `Graph` object.
+The `IntegrationGraphServer` should be declared as a bean to build, retrieve and refresh the `Graph` object.
+The resulting `Graph` object can be serialized to any format, although JSON is flexible and convenient to parse and represent on the client side.
+A simple Spring Integration application with only the default components would expose a graph as follows:
 
 [source,json]
 ----
@@ -14,7 +14,7 @@ Typical Spring Integration application may have such a graph model:
     "providerVersion": "4.3.0.RELEASE",
     "providerFormatVersion": 1.0,
     "provider": "spring-integration",
-    "name": "testApplication"
+    "name": "myApplication"
   },
   "nodes": [
     {
@@ -66,20 +66,23 @@ Typical Spring Integration application may have such a graph model:
 }
 ----
 
-So, the graph consists from tree top-level sections.
+As you can see, the graph consists of three top-level elements.
 
-The first one, `contentDescriptor`, is pretty straightforward and contains the general information about the application providing the model.
-The `name` can be customized on the `IntegrationGraphServer` bean or via `spring.application.name` environment property.
-Other properties are hard-coded by the framework and allow to distinguish the similar model from other vendors.
+The `contentDescriptor` graph element is pretty straightforward and contains general information about the application providing the data.
+The `name` can be customized on the `IntegrationGraphServer` bean or via `spring.application.name` application context environment property.
+Other properties are provided by the framework and allows you to distinguish a similar model from other sources.
 
-The last one represents connections between nodes from the second section and, therefore, between integration components in the target Spring Integration application.
-For example _from_ a `MessageChannel` _to_ an `EventDrivenConsumer` with some `MessageHandler`.
-Or _from_ an `AbstractReplyProducingMessageHandler` _to_ a `MessageChannel`.
-The information from this section can be used by the visualizing tool to render strings between nodes from the section #2, where these numbers are exactly values from the `nodeId` property of those nodes.
+The `links` graph element represents connections between nodes from the `nodes` graph element and, therefore, between integration components in the source Spring Integration application.
+For example _from_ a `MessageChannel` _to_ an `EventDrivenConsumer` with some `MessageHandler`;
+or _from_ an `AbstractReplyProducingMessageHandler` _to_ a `MessageChannel`.
+The information from this element can be used by a visualizing tool to render connections between nodes from the `nodes` graph element, where the `from` and `to` numbers represent the value from the `nodeId` property of the linked nodes.
 
-The second section is the most interesting because here we have not only the runtime components with their `componentType` s and `name` s, but also the metrics exposed by the component, if an `@EnableIntegrationManagement` is present with some `@Configuration`.
+The `nodes` graph element is perhaps the most interesting because its elements contain not only the runtime components with their `componentType` s and `name` s, but can also optionally contain metrics exposed by the component.
+To enable the metrics, add an `@EnableIntegrationManagement` to some `@Configuration` class or add an `<int:management/>` element to your XML configuration.
+You can control exactly which components in the framework collect statistics.
+See  <<metrics-management>> for complete information.
 See the `stats` attribute from the `_org.springframework.integration.errorLogger` component in the JSON example above.
-At the same time `nullChannel` and `errorChannel` don't provide such an information because our configuration may be like this:
+The `nullChannel` and `errorChannel` don't provide statistics information in this case, because the configuration for this example was:
 
 [source,java]
 ----
@@ -98,40 +101,42 @@ public class ManagementConfiguration {
 }
 ----
 
-The `nodeId` represent unique, incremental identifier to allow to distinguish component from other on the client side.
-Plus it is used from the third section to represent relationship (connection) of this component to others, if any.
-The last two `input` and `output` attributes are for the `inputChannel` and `outputChannel` properties of the `AbstractEndpoint`, `MessageHandler` or `SourcePollingChannelAdapter` and `MessageProducerSupport`.
+The `nodeId` represents a unique incremental identifier to distinguish one component from another.
+It is also used in the `links` element to represent a relationship (connection) of this component to others, if any.
+The `input` and `output` attributes are for the `inputChannel` and `outputChannel` properties of the `AbstractEndpoint`, `MessageHandler`, `SourcePollingChannelAdapter` or `MessageProducerSupport`.
 See the next paragraph for more information.
 
 ==== Graph Runtime Model
 
-The Spring Integration components are enough various and different by complexity.
-For example, any polling `MessageSource` must be present at runtime together with the `SourcePollingChannelAdapter` and `MessageChannel` to emit messages from the source data periodically.
-Other are middleware request-reply components, e.g. `JmsOutboundGateway`, with `AbstractEndpoint` to subscribe to (or poll messages from) the `requestChannel` (`input`) and `replyChannel` (`output`) to produce reply message downstream.
-Meanwhile any `MessageProducerSupport` implementation (e.g. `ApplicationEventListeningMessageProducer`) just wraps some target protocol listening logic and sends messages to the `outputChannel`.
+Spring Integration components have various levels of complexity.
+For example, any polled `MessageSource` also has a `SourcePollingChannelAdapter` and a `MessageChannel` to which to send messages from the source data periodically.
+Other components might be middleware request-reply components, e.g. `JmsOutboundGateway`, with a consuming `AbstractEndpoint` to subscribe to (or poll) the `requestChannel` (`input`) for messages, and a `replyChannel` (`output`) to produce a reply message to send downstream.
+Meanwhile, any `MessageProducerSupport` implementation (e.g. `ApplicationEventListeningMessageProducer`) simply wraps some source protocol listening logic and sends messages to the `outputChannel`.
 
-Independently of that diversity the Spring Integration components have many in common and after some approximation they can be represent as just an `IntegrationNode` hierarchy, which you can find in the `o.s.i.support.management.graph` package.
-For example the `ErrorCapableDiscardingMessageHandlerNode` is used for the `AggregatingMessageHandler` (because it has `discardChannel` option) on the `PollingConsumer` (because it has an `errorChannel` variant).
-Another more simple sample is `CompositeMessageHandlerNode` - for `MessageHandlerChain` on the `EventDrivenConsumer`.
+Within the graph, Spring Integration components are represented using the `IntegrationNode` class hierarchy, which you can find in the `o.s.i.support.management.graph` package.
+For example the `ErrorCapableDiscardingMessageHandlerNode` could be used for the `AggregatingMessageHandler` (because it has a `discardChannel` option) and can produce errors when consuming from a `PollableChannel` using a `PollingConsumer`.
+Another sample is `CompositeMessageHandlerNode` - for a `MessageHandlerChain` when subscribed to a `SubscribableChannel`, using an `EventDrivenConsumer`.
 
-This  `IntegrationNode` hierarchy can be used for parsing the graph model on the client side, as well as for the understanding a general Spring Integration runtime behavior.
+This  `IntegrationNode` hierarchy can be used for parsing the graph model on the client side, as well as for the understanding the general Spring Integration runtime behavior.
 See also <<programming-tips>> for more information.
 
 === Integration Graph Controller
 
-If your application is WEB-based (or built on top of Spring Boot) and Spring Integration HTTP module (see <<http>>) is present on the classpath you can use special `IntegrationGraphController` to expose `IntegrationGraphServer` functionality as a REST service.
-For this purpose a special `@EnableIntegrationGraphController` `@Configuration`-level annotation and `<int-http:graph-controller/>` XML component, respectively, are present by HTTP module.
-Together with the `@EnableWebMvc` (or `<mvc:annotation-driven/>` for xml definitions) this configuration registers `IntegrationGraphController` `@RestController` where its `@RequestMapping.path` can be configured on the `@EnableIntegrationGraphController` or `<int-http:graph-controller/>`, respectively.
-The default is `/integration`.
+If your application is WEB-based (or built on top of Spring Boot using an embedded web container) and the Spring Integration HTTP module (see <<http>>) is present on the classpath, you can use a `IntegrationGraphController` to expose the `IntegrationGraphServer` functionality as a REST service.
+For this purpose, the `@EnableIntegrationGraphController` `@Configuration` class annotation and the `<int-http:graph-controller/>` XML element, are available in the HTTP module.
+Together with the `@EnableWebMvc` annotation (or `<mvc:annotation-driven/>` for xml definitions), this configuration registers an `IntegrationGraphController` `@RestController` where its `@RequestMapping.path` can be configured on the `@EnableIntegrationGraphController` annotation or `<int-http:graph-controller/>` element.
+The default path is `/integration`.
 
-The `IntegrationGraphController` `@RestController` provides services like:
+The `IntegrationGraphController` `@RestController` provides these services:
 
 - `@GetMapping(name = "getGraph")` - to retrieve the state of the Spring Integration components since the last `IntegrationGraphServer` refresh.
 The `o.s.i.support.management.graph.Graph` is returned as a `@ResponseBody` of the REST service;
 - `@GetMapping(path = "/refresh", name = "refreshGraph")` - to refresh the current `Graph` for the actual runtime state and return it as a REST response.
+It is not necessaery to refresh the graph for metrics, they are provided in real-time when the graph is retrieved.
+Refresh can be called if the application context has been modified since the graph was last retrieved and the graph is completely rebuilt.
 
 Any Security and Cross Origin restrictions for the `IntegrationGraphController` can be achieved with the standard configuration options and components provided by Spring Security and Spring MVC projects.
-The simple example of that may be like this:
+The simple example of that may be:
 
 [source,xml]
 ----
@@ -151,7 +156,7 @@ The simple example of that may be like this:
 <int-http:graph-controller path="/myIntegration" />
 ----
 
-and Java & Annotation Configuration variant is:
+and the Java & Annotation Configuration variant is:
 
 [source,java]
 ----

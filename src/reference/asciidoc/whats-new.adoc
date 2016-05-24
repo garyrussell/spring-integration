@@ -40,7 +40,7 @@ See <<stream-transformer>> for more information.
 
 ==== Integration Graph
 
-A new `IntegrationGraphServer` together with the `IntegrationGraphController` REST service are provided to expose runtime model of Spring Integration components as a graph.
+A new `IntegrationGraphServer` together with the `IntegrationGraphController` REST service are provided to expose the runtime model of a Spring Integration application as a graph.
 See <<integration-graph>> for more information.
 
 [[x4.3-general]]
