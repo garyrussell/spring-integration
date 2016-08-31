@@ -150,7 +150,7 @@ public class MessagingAnnotationPostProcessor implements BeanPostProcessor, Bean
 			for (Entry<Class<? extends Annotation>, List<Annotation>> entry : annotationChains.entrySet()) {
 				Class<? extends Annotation> annotationType = entry.getKey();
 				List<Annotation> annotations = entry.getValue();
-				MethodAnnotationPostProcessor postProcessor =
+				MethodAnnotationPostProcessor<?> postProcessor =
 						MessagingAnnotationPostProcessor.this.postProcessors.get(annotationType);
 				if (postProcessor != null && postProcessor.shouldCreateEndpoint(method, annotations)) {
 					Method targetMethod = method;
