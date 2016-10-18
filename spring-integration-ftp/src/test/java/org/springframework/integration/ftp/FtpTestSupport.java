@@ -47,7 +47,7 @@ import org.springframework.integration.ftp.session.DefaultFtpSessionFactory;
  * @author Artem Bilan
  * @author Gary Russell
  * @author David Turanski
- * @since 4.3
+ * @since 4.2.12
  */
 public class FtpTestSupport extends RemoteFileTestSupport {
 

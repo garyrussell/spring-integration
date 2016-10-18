@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.Transformer;
+import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.core.MessageSource;
@@ -42,6 +43,7 @@ import org.springframework.integration.sftp.session.SftpRemoteFileTemplate;
 import org.springframework.integration.transformer.StreamTransformer;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
+import org.springframework.messaging.SubscribableChannel;
 import org.springframework.scheduling.support.PeriodicTrigger;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -50,7 +52,7 @@ import com.jcraft.jsch.ChannelSftp.LsEntry;
 
 /**
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  *
  */
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -90,12 +92,17 @@ public class SftpStreamingMessageSourceTests extends SftpTestSupport {
 		}
 
 		@Bean
-		@InboundChannelAdapter(channel = "stream")
+		@InboundChannelAdapter("stream")
 		public MessageSource<InputStream> ftpMessageSource() {
 			SftpStreamingMessageSource messageSource = new SftpStreamingMessageSource(template(), null);
 			messageSource.setRemoteDirectory("sftpSource/");
 			messageSource.setFilter(new AcceptOnceFileListFilter<LsEntry>());
 			return messageSource;
+		}
+
+		@Bean
+		public SubscribableChannel stream() {
+			return new DirectChannel();
 		}
 
 		@Bean

@@ -32,7 +32,7 @@ import com.jcraft.jsch.ChannelSftp.LsEntry;
  * Message source for streaming SFTP remote file contents.
  *
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  *
  */
 public class SftpStreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<LsEntry> {

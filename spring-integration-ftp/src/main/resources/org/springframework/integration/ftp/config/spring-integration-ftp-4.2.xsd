@@ -538,6 +538,13 @@
 						</xsd:documentation>
 					</xsd:annotation>
 				</xsd:attribute>
+				<xsd:attribute name="charset" type="xsd:string" default="UTF-8">
+					<xsd:annotation>
+						<xsd:documentation>
+							Allows you to specify Charset (e.g., US-ASCII, ISO-8859-1, UTF-8). [UTF-8] is default
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
 			</xsd:extension>
 		</xsd:complexContent>
 	</xsd:complexType>

@@ -27,7 +27,7 @@ import org.springframework.integration.ftp.session.FtpRemoteFileTemplate;
 
 /**
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  *
  */
 public class FtpStreamingInboundChannelAdapterParser extends AbstractRemoteFileStreamingInboundChannelAdapterParser {

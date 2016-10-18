@@ -41,7 +41,7 @@ import com.jcraft.jsch.ChannelSftp.LsEntry;
  *
  * @author David Turanski
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  */
 public class SftpTestSupport extends RemoteFileTestSupport {
 

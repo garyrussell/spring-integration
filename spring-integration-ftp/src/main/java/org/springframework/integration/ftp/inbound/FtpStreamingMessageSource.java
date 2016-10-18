@@ -32,7 +32,7 @@ import org.springframework.integration.ftp.session.FtpFileInfo;
  * Message source for streaming FTP remote file contents.
  *
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  *
  */
 public class FtpStreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<FTPFile> {

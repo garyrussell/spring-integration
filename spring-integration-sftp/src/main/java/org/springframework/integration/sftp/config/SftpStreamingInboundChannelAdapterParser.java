@@ -27,7 +27,7 @@ import org.springframework.integration.sftp.session.SftpRemoteFileTemplate;
 
 /**
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  *
  */
 public class SftpStreamingInboundChannelAdapterParser extends AbstractRemoteFileStreamingInboundChannelAdapterParser {
