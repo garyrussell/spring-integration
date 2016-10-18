@@ -32,19 +32,23 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.Transformer;
+import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.core.MessageSource;
-import org.springframework.integration.file.filters.AcceptOnceFileListFilter;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.ftp.FtpTestSupport;
+import org.springframework.integration.ftp.filters.FtpPersistentAcceptOnceFileListFilter;
 import org.springframework.integration.ftp.session.FtpRemoteFileTemplate;
+import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.scheduling.PollerMetadata;
 import org.springframework.integration.transformer.StreamTransformer;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
+import org.springframework.messaging.SubscribableChannel;
 import org.springframework.scheduling.support.PeriodicTrigger;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 /**
@@ -52,6 +56,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  * @since 4.3
  *
  */
+@ContextConfiguration
 @RunWith(SpringJUnit4ClassRunner.class)
 @DirtiesContext
 public class FtpStreamingMessageSourceTests extends FtpTestSupport {
@@ -89,11 +94,16 @@ public class FtpStreamingMessageSourceTests extends FtpTestSupport {
 		}
 
 		@Bean
-		@InboundChannelAdapter(channel = "stream")
+		public SubscribableChannel stream() {
+			return new DirectChannel();
+		}
+
+		@Bean
+		@InboundChannelAdapter("stream")
 		public MessageSource<InputStream> ftpMessageSource() {
 			FtpStreamingMessageSource messageSource = new FtpStreamingMessageSource(template(), null);
 			messageSource.setRemoteDirectory("ftpSource/");
-			messageSource.setFilter(new AcceptOnceFileListFilter<FTPFile>());
+			messageSource.setFilter(new FtpPersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "foo"));
 			return messageSource;
 		}
 
