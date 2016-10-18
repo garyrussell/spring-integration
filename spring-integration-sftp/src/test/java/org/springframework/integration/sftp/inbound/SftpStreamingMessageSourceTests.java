@@ -46,6 +46,7 @@ import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.SubscribableChannel;
 import org.springframework.scheduling.support.PeriodicTrigger;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.jcraft.jsch.ChannelSftp.LsEntry;
@@ -55,6 +56,7 @@ import com.jcraft.jsch.ChannelSftp.LsEntry;
  * @since 4.2.12
  *
  */
+@ContextConfiguration
 @RunWith(SpringJUnit4ClassRunner.class)
 @DirtiesContext
 public class SftpStreamingMessageSourceTests extends SftpTestSupport {

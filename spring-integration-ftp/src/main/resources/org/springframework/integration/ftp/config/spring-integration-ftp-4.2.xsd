@@ -499,6 +499,14 @@
 						</xsd:documentation>
 					</xsd:annotation>
 				</xsd:attribute>
+				<xsd:attribute name="temporary-remote-directory" type="xsd:string"
+					use="optional">
+					<xsd:annotation>
+						<xsd:documentation>
+							Not used.
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
 				<xsd:attribute name="filename-pattern" type="xsd:string">
 					<xsd:annotation>
 						<xsd:documentation>

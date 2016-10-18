@@ -33,7 +33,7 @@ import org.springframework.util.StringUtils;
  * Abstract base class for parsing remote file streaming inbound channel adapters.
  *
  * @author Gary Russell
- * @since 4.3
+ * @since 4.2.12
  */
 public abstract class AbstractRemoteFileStreamingInboundChannelAdapterParser
 		extends AbstractPollingInboundChannelAdapterParser {

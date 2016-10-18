@@ -541,6 +541,14 @@
 						</xsd:documentation>
 					</xsd:annotation>
 				</xsd:attribute>
+				<xsd:attribute name="temporary-remote-directory" type="xsd:string"
+					use="optional">
+					<xsd:annotation>
+						<xsd:documentation>
+							Not used.
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
 				<xsd:attribute name="charset" type="xsd:string"
 					default="UTF-8">
 					<xsd:annotation>
@@ -618,5 +626,16 @@
 		</xsd:attribute>
 		<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
 	</xsd:complexType>
+
+	<xsd:attributeGroup name="tempSuffixGroup">
+		<xsd:attribute name="temporary-file-suffix" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Extension used when downloading files. We change
+					it right after we know it's downloaded.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:attributeGroup>
 
 </xsd:schema>
