@@ -27,6 +27,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 import javax.management.DynamicMBean;
 import javax.management.JMException;
@@ -42,7 +44,9 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EmbeddedValueResolverAware;
+import org.springframework.context.EnvironmentAware;
 import org.springframework.context.Lifecycle;
+import org.springframework.core.env.Environment;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.context.IntegrationContextUtils;
 import org.springframework.integration.context.OrderlyShutdownCapable;
@@ -113,7 +117,7 @@ import org.springframework.util.StringValueResolver;
  */
 @org.springframework.jmx.export.annotation.ManagedResource
 public class IntegrationMBeanExporter extends MBeanExporter implements ApplicationContextAware,
-		EmbeddedValueResolverAware {
+		EmbeddedValueResolverAware, EnvironmentAware {
 
 	private static final Log logger = LogFactory.getLog(IntegrationMBeanExporter.class);
 
@@ -163,6 +167,7 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 
 	private final AtomicBoolean shuttingDown = new AtomicBoolean();
 
+	private String appPrefix = "";
 
 	public IntegrationMBeanExporter() {
 		super();
@@ -218,6 +223,17 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 	@Override
 	public void setEmbeddedValueResolver(StringValueResolver resolver) {
 		this.attributeSource.setValueResolver(resolver);
+	}
+
+	public void setAppPrefix(String appPrefix) {
+		this.appPrefix = appPrefix;
+	}
+
+	@Override
+	public void setEnvironment(Environment environment) {
+		String streamName = environment.getProperty("stream.name");
+		String appLabel = environment.getProperty("app.label");
+		this.appPrefix = streamName + "." + appLabel + ".";
 	}
 
 	@Override
@@ -547,7 +563,10 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 
 	@ManagedAttribute
 	public String[] getChannelNames() {
-		return this.channelsByName.keySet().toArray(new String[this.channelsByName.size()]);
+		return this.channelsByName.keySet().stream()
+				.map(s -> this.appPrefix + s)
+				.collect(Collectors.toList())
+				.toArray(new String[this.channelsByName.size()]);
 	}
 
 	public MessageHandlerMetrics getHandlerMetrics(String name) {
@@ -599,6 +618,7 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 	}
 
 	public long getChannelSendCountLong(String name) {
+		name = name.replaceFirst(Matcher.quoteReplacement(this.appPrefix), "");
 		if (this.channelsByName.containsKey(name)) {
 			return this.channelsByName.get(name).getSendCountLong();
 		}
@@ -611,6 +631,7 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 	}
 
 	public long getChannelSendErrorCountLong(String name) {
+		name = name.replaceFirst(Matcher.quoteReplacement(this.appPrefix), "");
 		if (this.channelsByName.containsKey(name)) {
 			return this.channelsByName.get(name).getSendErrorCountLong();
 		}
@@ -623,6 +644,7 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 	}
 
 	public long getChannelReceiveCountLong(String name) {
+		name = name.replaceFirst(Matcher.quoteReplacement(this.appPrefix), "");
 		if (this.channelsByName.containsKey(name)) {
 			if (this.channelsByName.get(name) instanceof PollableChannelManagement) {
 				return ((PollableChannelManagement) this.channelsByName.get(name)).getReceiveCountLong();
@@ -634,6 +656,7 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 
 	@ManagedOperation
 	public Statistics getChannelSendRate(String name) {
+		name = name.replaceFirst(Matcher.quoteReplacement(this.appPrefix), "");
 		if (this.channelsByName.containsKey(name)) {
 			return this.channelsByName.get(name).getSendRate();
 		}
@@ -642,6 +665,7 @@ public class IntegrationMBeanExporter extends MBeanExporter implements Applicati
 	}
 
 	public Statistics getChannelErrorRate(String name) {
+		name = name.replaceFirst(Matcher.quoteReplacement(this.appPrefix), "");
 		if (this.channelsByName.containsKey(name)) {
 			return this.channelsByName.get(name).getErrorRate();
 		}
