@@ -18,7 +18,7 @@ See <<mongodb-outbound-gateway>> for more information.
 === General Changes
 
 Spring Integration is now fully based on Spring Framework `5.0` and Project Reactor `3.0`.
-The previous Project Reactor versions aren't supported any more.
+Previous Project Reactor versions are no longer supported.
 
 ==== Core Changes
 

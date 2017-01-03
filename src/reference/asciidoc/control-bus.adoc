@@ -32,7 +32,7 @@ operationChannel.send(operation)
 The root of the context for the expression is the `Message` itself, so you also have access to the `payload` and `headers` as variables within your expression.
 This is consistent with all the other expression support in Spring Integration endpoints.
 
-With Java and Annotations the Control Bus can be configured like:
+With Java and Annotations the Control Bus can be configured as follows:
 
 [source,java]
 ----
@@ -42,7 +42,8 @@ public ExpressionControlBusFactoryBean controlBus() {
     return new ExpressionControlBusFactoryBean();
 }
 ----
-Or via Java DSL definitions:
+
+Or, when using Java DSL flow definitions:
 
 [source,java]
 ----
@@ -53,7 +54,9 @@ public IntegrationFlow controlBusFlow() {
               .get();
 }
 ----
-Or if you prefer Lambda style with automatic `DirectChannel` creation:
+
+Or, if you prefer Lambda style with automatic `DirectChannel` creation:
+
 [source,java]
 ----
 @Bean
@@ -61,3 +64,5 @@ public IntegrationFlow controlBus() {
     return IntegrationFlowDefinition::controlBus;
 }
 ----
+
+In this case, the channel is named `controlBus.input`.
