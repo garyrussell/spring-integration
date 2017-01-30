@@ -2831,11 +2831,12 @@ public abstract class IntegrationFlowDefinition<B extends IntegrationFlowDefinit
 							((AbstractMessageProducingHandler) messageProducer).setOutputChannelName(channelName);
 						}
 						else {
-							throw new BeanCreationException("The 'currentComponent' (" + currentComponent +
-									") doesn't extends 'AbstractMessageProducingHandler' " +
-									"for message channel reference resolution by name. \n" +
-									"Or implement 'AbstractMessageProducingHandler' or consider " +
-									"to use 'MessageChannel'object instead of its name.");
+							throw new BeanCreationException("The 'currentComponent' (" + currentComponent
+									+ ") must extend 'AbstractMessageProducingHandler' "
+									+ "for message channel resolution by name.\n"
+									+ "Your handler should extend 'AbstractMessageProducingHandler', "
+									+ "its subclass 'AbstractReplyProducingMessageHandler' or "
+									+ "reference a 'MessageChannel' bean instead of its name.");
 						}
 					}
 					else {
