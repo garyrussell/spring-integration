@@ -68,7 +68,7 @@ The gateway now correctly sets the `errorChannel` header when the gateway method
 Previously, the header was not populated.
 This had the effect that synchronous downstream flows (running on the calling thread) would send the exception to the configured channel but an exception on an async downstream flow would be sent to the default `errorChannel` instead.
 
-The `RequestReplyExchanger` interface now provides `throws MessagingException` clause to meet all the proposed messages exchange contract.
+The `RequestReplyExchanger` interface now has a `throws MessagingException` clause to meet all the proposed messages exchange contract.
 
 See <<gateway-error-handling>> for more information.
 
