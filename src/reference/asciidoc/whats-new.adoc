@@ -11,15 +11,15 @@ development process.
 
 ==== Java DSL
 
-The separate https://github.com/spring-projects/spring-integration-java-dsl[Spring Integration Java DSL] project has been merged into Core.
-The `IntegrationComponentSpec` implementations for channel adapters and gateways are distributed between particular modules.
+The separate https://github.com/spring-projects/spring-integration-java-dsl[Spring Integration Java DSL] project has now been merged into the core Spring Integration project.
+The `IntegrationComponentSpec` implementations for channel adapters and gateways are distributed to their specific modules.
 See <<spring-integration-endpoints>> for more information about Java DSL support for target protocol integration.
-Also see https://github.com/spring-projects/spring-integration/wiki/Spring-Integration-4.3-to-5.0-Migration-Guide#java-dsl[Migration Guide] for required steps to move to Spring Integration 5.0.
+Also see the https://github.com/spring-projects/spring-integration/wiki/Spring-Integration-4.3-to-5.0-Migration-Guide#java-dsl[4.3 to 5.0 Migration Guide] for the required steps to move to Spring Integration 5.0.
 
 ==== Testing Support
 
-A new Spring Integration Test Framework has been started.
-Now with the `@SpringIntegrationTest` annotation on test class and `MockIntegration` factory you can make your JUnit tests for integration flows much easier.
+A new Spring Integration Test Framework has been created to assist with testing Spring Integration applications.
+Now, with the `@SpringIntegrationTest` annotation on test class and `MockIntegration` factory you can make your JUnit tests for integration flows somewhat easier.
 See <<testing>> for more information.
 
 ==== MongoDB Outbound Gateway
