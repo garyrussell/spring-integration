@@ -17,6 +17,7 @@
 package org.springframework.integration.endpoint;
 
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.core.AttributeAccessor;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.core.MessagingTemplate;
 import org.springframework.integration.history.MessageHistory;
@@ -137,7 +138,7 @@ public abstract class MessageProducerSupport extends AbstractEndpoint implements
 	 * @param errorMessageStrategy the {@link ErrorMessageStrategy}.
 	 * @since 4.3.10
 	 */
-	public void setErrorMessageStrategy(ErrorMessageStrategy errorMessageStrategy) {
+	public final void setErrorMessageStrategy(ErrorMessageStrategy errorMessageStrategy) {
 		Assert.notNull(errorMessageStrategy, "'errorMessageStrategy' cannot be null");
 		this.errorMessageStrategy = errorMessageStrategy;
 	}
@@ -189,12 +190,24 @@ public abstract class MessageProducerSupport extends AbstractEndpoint implements
 			MessageChannel errorChannel = getErrorChannel();
 			if (errorChannel != null) {
 				this.messagingTemplate.send(errorChannel, this.errorMessageStrategy.buildErrorMessage(e,
-						ErrorMessageUtils.getAttributeAccessor(message, null)));
+						getErrorMessageAttributes(message)));
 			}
 			else {
 				throw e;
 			}
 		}
+	}
+
+	/**
+	 * Populate an {@link AttributeAccessor} to be used when building an error message
+	 * with the {@link #setErrorMessageStrategy(ErrorMessageStrategy)
+	 * errorMessageStrategy}.
+	 * @param message the message.
+	 * @return the attributes.
+	 * @since 4.3.10
+	 */
+	protected AttributeAccessor getErrorMessageAttributes(Message<?> message) {
+		return ErrorMessageUtils.getAttributeAccessor(message, null);
 	}
 
 }

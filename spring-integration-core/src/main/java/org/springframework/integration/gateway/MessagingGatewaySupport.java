@@ -18,6 +18,7 @@ package org.springframework.integration.gateway;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.springframework.core.AttributeAccessor;
 import org.springframework.integration.MessageTimeoutException;
 import org.springframework.integration.core.MessagingTemplate;
 import org.springframework.integration.endpoint.AbstractEndpoint;
@@ -300,7 +301,7 @@ public abstract class MessagingGatewaySupport extends AbstractEndpoint
 	 * @param errorMessageStrategy the {@link ErrorMessageStrategy}.
 	 * @since 4.3.10
 	 */
-	public void setErrorMessageStrategy(ErrorMessageStrategy errorMessageStrategy) {
+	public final void setErrorMessageStrategy(ErrorMessageStrategy errorMessageStrategy) {
 		Assert.notNull(errorMessageStrategy, "'errorMessageStrategy' cannot be null");
 		this.errorMessageStrategy = errorMessageStrategy;
 	}
@@ -480,7 +481,7 @@ public abstract class MessagingGatewaySupport extends AbstractEndpoint
 			MessageChannel errorChannel = getErrorChannel();
 			if (errorChannel != null) {
 				Message<?> errorMessage = this.errorMessageStrategy.buildErrorMessage(error,
-						ErrorMessageUtils.getAttributeAccessor(requestMessage, null));
+						getErrorMessageAttributes(requestMessage));
 				Message<?> errorFlowReply = null;
 				try {
 					errorFlowReply = this.messagingTemplate.sendAndReceive(errorChannel, errorMessage);
@@ -515,6 +516,18 @@ public abstract class MessagingGatewaySupport extends AbstractEndpoint
 			}
 		}
 		return reply;
+	}
+
+	/**
+	 * Populate an {@link AttributeAccessor} to be used when building an error message
+	 * with the {@link #setErrorMessageStrategy(ErrorMessageStrategy)
+	 * errorMessageStrategy}.
+	 * @param message the message.
+	 * @return the attributes.
+	 * @since 4.3.10
+	 */
+	protected AttributeAccessor getErrorMessageAttributes(Message<?> message) {
+		return ErrorMessageUtils.getAttributeAccessor(message, null);
 	}
 
 	private void rethrow(Throwable t, String description) {

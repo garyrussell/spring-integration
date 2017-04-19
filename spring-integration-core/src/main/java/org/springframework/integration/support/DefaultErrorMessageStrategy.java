@@ -37,8 +37,8 @@ public class DefaultErrorMessageStrategy implements ErrorMessageStrategy {
 
 	@Override
 	@SuppressWarnings("deprecation")
-	public ErrorMessage buildErrorMessage(Throwable throwable, AttributeAccessor context) {
-		Object inputMessage = context.getAttribute(ErrorMessageUtils.INPUT_MESSAGE_CONTEXT_KEY);
+	public ErrorMessage buildErrorMessage(Throwable throwable, AttributeAccessor attributes) {
+		Object inputMessage = attributes.getAttribute(ErrorMessageUtils.INPUT_MESSAGE_CONTEXT_KEY);
 		return inputMessage instanceof Message
 				? new org.springframework.integration.message.EnhancedErrorMessage((Message<?>) inputMessage, throwable)
 				: new ErrorMessage(throwable);
