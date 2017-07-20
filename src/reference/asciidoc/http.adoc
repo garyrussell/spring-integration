@@ -125,7 +125,8 @@ The key that is used for that map entry by default is 'reply', but this can be o
 === WebFlux Server Side support
 
 Starting with _version 5.0_, the `ReactiveHttpInboundEndpoint`, http://docs.spring.io/spring/docs/5.0.0.RC3/spring-framework-reference/web.html#web-reactive[WebFlux] `WebHandler`, implementation is provided.
-This component is similar to the MVC-based `HttpRequestHandlingEndpointSupport` and has with it some common options via newly extracted `BaseHttpInboundEndpoint`, but can be configured, installed and performed in the Reactive foundation - Spring WebFlux environment.
+This component is similar to the MVC-based `HttpRequestHandlingEndpointSupport` with which it shares some common options via the newly extracted `BaseHttpInboundEndpoint`.
+Instead of MVC, it is used in the Spring WebFlux Reactive environment.
 A simple sample for explanation:
 
 [source,java]
@@ -153,14 +154,14 @@ public class ReactiveHttpConfiguration {
 }
 ----
 
-Everything looks similar to the `HttpRequestHandlingEndpointSupport` mentioned above, except that we use `@EnableWebFlux` to add WebFlux infrastructure to our integration application.
-Also `ReactiveHttpInboundEndpoint` performs `sendAndReceive` operation to the downstream flow via back-pressure, on demand based manner provided by the reactive HTTP server implementation.
+As can be seen, the configuration is similar to the `HttpRequestHandlingEndpointSupport` mentioned above, except that we use `@EnableWebFlux` to add the WebFlux infrastructure to our integration application.
+Also, the `ReactiveHttpInboundEndpoint` performs `sendAndReceive` operation to the downstream flow using back-pressure, on demand based capabilities, provided by the reactive HTTP server implementation.
 
-NOTE: The reply part is non-blocked as well and based on the internal `FutureReplyChannel` which is flat-mapped to the reply `Mono` for on demand resolution.
+NOTE: The reply part is non-blocking as well and based on the internal `FutureReplyChannel` which is flat-mapped to a reply `Mono` for on demand resolution.
 
-The `ReactiveHttpInboundEndpoint` can be configured with the custom `ServerCodecConfigurer`, `RequestedContentTypeResolver` and even `ReactiveAdapterRegistry`.
-The last one let us to return a reply as any reactive type - Reactor `Flux`, RxJava `Observable`, `Flowable` etc.
-This way we can simply implement https://en.wikipedia.org/wiki/Server-sent_events[Server Sent Events] scenario with the Spring Integration components:
+The `ReactiveHttpInboundEndpoint` can be configured with a custom `ServerCodecConfigurer`, `RequestedContentTypeResolver` and even a `ReactiveAdapterRegistry`.
+The latter provides a mechanism where we can return a reply as any reactive type - Reactor `Flux`, RxJava `Observable`, `Flowable` etc.
+This way, we can simply implement https://en.wikipedia.org/wiki/Server-sent_events[Server Sent Events] scenarios with Spring Integration components:
 
 [source,java]
 ----
@@ -245,8 +246,8 @@ Of course, this can be an abstract class, or even an interface (such as `java.io
 
 ==== ReactiveHttpRequestExecutingMessageHandler
 
-The `ReactiveHttpRequestExecutingMessageHandler` (starting with _version 5.0_) implementation is very similar to `HttpRequestExecutingMessageHandler` instead of delegating to a `WebClient` from Spring Framework WebFlux module.
-To configure it, write a bean like this:
+The `ReactiveHttpRequestExecutingMessageHandler` (starting with _version 5.0_) implementation is very similar to `HttpRequestExecutingMessageHandler`, using a `WebClient` from the Spring Framework WebFlux module.
+To configure it, define a bean like this:
 
 [source,xml]
 ----
