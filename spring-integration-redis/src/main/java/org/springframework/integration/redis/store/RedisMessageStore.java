@@ -56,7 +56,8 @@ public class RedisMessageStore extends AbstractKeyValueMessageStore {
 	 * Construct {@link RedisMessageStore} based on the provided
 	 * {@link RedisConnectionFactory} and prefix.
 	 * @param connectionFactory the RedisConnectionFactory to use
-	 * @param prefix the prefix to use
+	 * @param prefix the key prefix to use, allowing the same broker to be used for
+	 * multiple stores.
 	 * @since 4.3.12
 	 * @see AbstractKeyValueMessageStore#AbstractKeyValueMessageStore(String)
 	 */

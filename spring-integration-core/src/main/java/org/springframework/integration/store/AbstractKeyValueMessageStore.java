@@ -58,12 +58,10 @@ public abstract class AbstractKeyValueMessageStore extends AbstractMessageGroupS
 	}
 
 	/**
-	 * Construct the instance based on the provided prefix
-	 * for keys to distinguish different store instances
-	 * in the same target key-value data base.
-	 * Defaults to empty string - no prefix.
-	 * The actual prefix for messages is {@code prefix + MESSAGE_};
-	 * for message groups - {@code prefix + MESSAGE_GROUP_}
+	 * Construct an instance based on the provided prefix for keys to distinguish between
+	 * different store instances in the same target key-value data base. Defaults to an
+	 * empty string - no prefix. The actual prefix for messages is
+	 * {@code prefix + MESSAGE_}; for message groups - {@code prefix + MESSAGE_GROUP_}
 	 * @param prefix the prefix to use
 	 * @since 4.3.12
 	 */
@@ -74,9 +72,9 @@ public abstract class AbstractKeyValueMessageStore extends AbstractMessageGroupS
 	}
 
 	/**
-	 * Return the configured prefix for message keys to distinguish different store instances
-	 * in the same target key-value data base.
-	 * Defaults to the {@value MESSAGE_KEY_PREFIX} - without custom prefix.
+	 * Return the configured prefix for message keys to distinguish between different
+	 * store instances in the same target key-value data base. Defaults to the
+	 * {@value MESSAGE_KEY_PREFIX} - without a custom prefix.
 	 * @return the prefix for keys
 	 * @since 4.3.12
 	 */
@@ -85,9 +83,9 @@ public abstract class AbstractKeyValueMessageStore extends AbstractMessageGroupS
 	}
 
 	/**
-	 * Return the configured prefix for message group keys to distinguish different store instances
-	 * in the same target key-value data base.
-	 * Defaults to the {@value MESSAGE_GROUP_KEY_PREFIX} - without custom prefix.
+	 * Return the configured prefix for message group keys to distinguish between
+	 * different store instances in the same target key-value data base. Defaults to the
+	 * {@value MESSAGE_GROUP_KEY_PREFIX} - without custom prefix.
 	 * @return the prefix for keys
 	 * @since 4.3.12
 	 */

@@ -54,9 +54,10 @@ public class GemfireMessageStore extends AbstractKeyValueMessageStore {
 	}
 
 	/**
-	 * Construct the {@link GemfireMessageStore} instance based on the provided
+	 * Construct a {@link GemfireMessageStore} instance based on the provided
 	 * @param messageStoreRegion the region to use.
-	 * @param prefix the prefix to use.
+	 * @param prefix the key prefix to use, allowing the same region to be used for
+	 * multiple stores.
 	 * @since 4.3.12
 	 */
 	public GemfireMessageStore(Region<Object, Object> messageStoreRegion, String prefix) {

@@ -175,7 +175,7 @@ Note the _pool_ element is configured with the address of a cache server (a loca
 The region is configured as a 'PROXY' so that no data will be stored locally.
 The region's id corresponds to a region with the same name configured in the cache server.
 
-Starting with version _4.3.12_, the `GemfireMessageStore` supports `prefix` option to allow to distinguish non-shared instances of the store on the same Gemfire region.
+Starting with version _4.3.12_, the `GemfireMessageStore` supports the key `prefix` option to allow distinguishing between instances of the store on the same Gemfire region.
 
 [[gemfire-lock-registry]]
 === Gemfire Lock Registry
