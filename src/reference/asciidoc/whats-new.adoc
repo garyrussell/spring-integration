@@ -47,6 +47,6 @@ See <<json-transformers>> for more information.
 
 ==== Integration Flows: Generated bean names
 
-Starting with _version 5.0.5_, the generated bean names for the components in the `IntegrationFlow` include the flow bean name with the dot as a prefix.
+Starting with _version 5.0.5_, generated bean names for the components in an `IntegrationFlow` include the flow bean name, followed by a dot, as a prefix.
 
 See <<java-dsl-flows>> for more information.
