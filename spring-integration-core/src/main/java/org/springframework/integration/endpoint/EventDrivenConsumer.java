@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,25 @@
 
 package org.springframework.integration.endpoint;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.Lifecycle;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.router.MessageRouter;
 import org.springframework.integration.support.context.NamedComponent;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.SubscribableChannel;
 import org.springframework.util.Assert;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.PatternMatchUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -33,24 +44,34 @@ import org.springframework.util.StringUtils;
  * @author Oleg Zhurakousky
  * @author Gary Russell
  */
-public class EventDrivenConsumer extends AbstractEndpoint implements IntegrationConsumer {
+public class EventDrivenConsumer extends AbstractEndpoint implements IntegrationConsumer, SmartInitializingSingleton {
 
-	private final SubscribableChannel inputChannel;
+	private final List<SubscribableChannel> inputChannels = new ArrayList<>();
 
 	private final MessageHandler handler;
 
+	private final List<String> inputChannelPatterns = new ArrayList<>();
 
-	public EventDrivenConsumer(SubscribableChannel inputChannel, MessageHandler handler) {
-		Assert.notNull(inputChannel, "inputChannel must not be null");
+	public EventDrivenConsumer(MessageHandler handler) {
+		this(null, handler);
+	}
+
+	public EventDrivenConsumer(@Nullable SubscribableChannel inputChannel, MessageHandler handler) {
 		Assert.notNull(handler, "handler must not be null");
-		this.inputChannel = inputChannel;
+		if (inputChannel != null) {
+			this.inputChannels.add(inputChannel);
+		}
 		this.handler = handler;
 		this.setPhase(Integer.MIN_VALUE);
 	}
 
 	@Override
 	public MessageChannel getInputChannel() {
-		return this.inputChannel;
+		return this.inputChannels.get(0);
+	}
+
+	public List<MessageChannel> getInputChannels() {
+		return Collections.unmodifiableList(this.inputChannels);
 	}
 
 	@Override
@@ -71,10 +92,34 @@ public class EventDrivenConsumer extends AbstractEndpoint implements Integration
 		return this.handler;
 	}
 
+	public void setInputChannelPatterns(String... inputChannelPatterns) {
+		Assert.notNull(inputChannelPatterns, "'inputChannelPatterns' must not be null");
+		this.inputChannelPatterns.addAll(Arrays.asList(inputChannelPatterns));
+	}
+
+	@Override
+	public void afterSingletonsInstantiated() {
+		Assert.state(ObjectUtils.isEmpty(this.inputChannelPatterns) || this.inputChannels.isEmpty(),
+				"Cannot provide an input channel when inputchannel patterns are provided");
+		Map<String, SubscribableChannel> channels = getApplicationContext().getBeansOfType(SubscribableChannel.class,
+				false, false);
+		this.inputChannels.addAll(channels.entrySet()
+			.stream()
+			.filter(entry -> matches(entry.getKey()))
+			.map(entry -> entry.getValue())
+			.collect(Collectors.toList()));
+	}
+
+	private boolean matches(String beanName) {
+		return this.inputChannelPatterns.stream().anyMatch(p -> PatternMatchUtils.simpleMatch(p, beanName));
+	}
+
 	@Override
 	protected void doStart() {
-		this.logComponentSubscriptionEvent(true);
-		this.inputChannel.subscribe(this.handler);
+		this.inputChannels.forEach(c -> {
+			logComponentSubscriptionEvent(c, true);
+			c.subscribe(this.handler);
+		});
 		if (this.handler instanceof Lifecycle) {
 			((Lifecycle) this.handler).start();
 		}
@@ -82,16 +127,18 @@ public class EventDrivenConsumer extends AbstractEndpoint implements Integration
 
 	@Override
 	protected void doStop() {
-		this.logComponentSubscriptionEvent(false);
-		this.inputChannel.unsubscribe(this.handler);
+		this.inputChannels.forEach(c -> {
+			logComponentSubscriptionEvent(c, false);
+			c.unsubscribe(this.handler);
+		});
 		if (this.handler instanceof Lifecycle) {
 			((Lifecycle) this.handler).stop();
 		}
 	}
 
-	private void logComponentSubscriptionEvent(boolean add) {
-		if (this.handler instanceof NamedComponent && this.inputChannel instanceof NamedComponent) {
-			String channelName = ((NamedComponent) this.inputChannel).getComponentName();
+	private void logComponentSubscriptionEvent(MessageChannel inputChannel, boolean add) {
+		if (this.handler instanceof NamedComponent && inputChannel instanceof NamedComponent) {
+			String channelName = ((NamedComponent) inputChannel).getComponentName();
 			String componentType = ((NamedComponent) this.handler).getComponentType();
 			componentType = StringUtils.hasText(componentType) ? componentType : "";
 			String componentName = getComponentName();
@@ -107,4 +154,5 @@ public class EventDrivenConsumer extends AbstractEndpoint implements Integration
 			logger.info(buffer.toString());
 		}
 	}
+
 }
