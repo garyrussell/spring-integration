@@ -17,6 +17,7 @@
 package org.springframework.integration.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.fail;
 
 import java.util.ArrayList;
@@ -165,17 +166,11 @@ public class SimplePoolTests {
 		assertThat(allocatedItems).hasSize(5);
 
 		// no more items can be allocated (indirect check of permits)
-		try {
-			pool.getItem();
-			fail("No more items should be allocated");
-		}
-		catch (PoolItemNotAvailableException e) {
-			// permits state correctly
-		}
+		assertThatExceptionOfType(PoolItemNotAvailableException.class).isThrownBy(() -> pool.getItem());
 	}
 
 	@Test
-	public void testSizeUpdateIfAllocated() {
+	public void testSizeUpdateIfPartiallyAllocated() {
 		SimplePool<String> pool = stringPool(10, new HashSet<>(), new AtomicBoolean());
 		pool.setWaitTimeout(0);
 		List<String> allocated = new ArrayList<>();
@@ -196,6 +191,7 @@ public class SimplePoolTests {
 		assertThat(pool.getPoolSize()).isEqualTo(8);
 		assertThat(pool.getAllocatedCount()).isEqualTo(8);
 		assertThat(pool.getIdleCount()).isEqualTo(0);
+		assertThat(pool.getActiveCount()).isEqualTo(8);
 
 		// releasing 3 items
 		for (int i = 2; i < 5; i++) {
@@ -206,15 +202,53 @@ public class SimplePoolTests {
 		assertThat(pool.getPoolSize()).isEqualTo(5);
 		assertThat(pool.getAllocatedCount()).isEqualTo(5);
 		assertThat(pool.getIdleCount()).isEqualTo(0);
+		assertThat(pool.getActiveCount()).isEqualTo(5);
 
 		// no more items can be allocated (indirect check of permits)
-		try {
-			pool.getItem();
-			fail("No more items should be allocated");
+		assertThatExceptionOfType(PoolItemNotAvailableException.class).isThrownBy(() -> pool.getItem());
+	}
+
+	@Test
+	public void testSizeUpdateIfFullyAllocated() {
+		SimplePool<String> pool = stringPool(10, new HashSet<>(), new AtomicBoolean());
+		pool.setWaitTimeout(0);
+		List<String> allocated = new ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			allocated.add(pool.getItem());
 		}
-		catch (PoolItemNotAvailableException e) {
-			// permits state correctly
+
+		// trying to reduce pool size
+		pool.setPoolSize(5);
+
+		// at this moment the actual pool size cannot be reduced - all in use
+		assertThat(pool.getPoolSize()).isEqualTo(10);
+		assertThat(pool.getAllocatedCount()).isEqualTo(10);
+		assertThat(pool.getIdleCount()).isEqualTo(0);
+		assertThat(pool.getActiveCount()).isEqualTo(10);
+
+		// releasing 5 items
+		for (int i = 0; i < 5; i++) {
+			pool.releaseItem(allocated.get(i));
 		}
+
+		// now pool size should be reduced
+		assertThat(pool.getPoolSize()).isEqualTo(5);
+		assertThat(pool.getAllocatedCount()).isEqualTo(5);
+		assertThat(pool.getIdleCount()).isEqualTo(0);
+		assertThat(pool.getActiveCount()).isEqualTo(5);
+
+		// no more items can be allocated (indirect check of permits)
+		assertThatExceptionOfType(PoolItemNotAvailableException.class).isThrownBy(() -> pool.getItem());
+
+		// releasing remaining items
+		for (int i = 5; i < 10; i++) {
+			pool.releaseItem(allocated.get(i));
+		}
+
+		assertThat(pool.getPoolSize()).isEqualTo(5);
+		assertThat(pool.getAllocatedCount()).isEqualTo(5);
+		assertThat(pool.getIdleCount()).isEqualTo(5);
+		assertThat(pool.getActiveCount()).isEqualTo(0);
 	}
 
 	private SimplePool<String> stringPool(int size, final Set<String> strings,
