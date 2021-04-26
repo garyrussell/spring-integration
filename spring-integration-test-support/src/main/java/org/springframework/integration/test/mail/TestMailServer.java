@@ -95,8 +95,8 @@ public final class TestMailServer {
 				super(socket);
 			}
 
-			@Override
-			void doRun() {
+			@Override // NOSONAR
+			void doRun() { // NOSONAR
 				try {
 					write("220 foo SMTP");
 					while (!socket.isClosed()) {
